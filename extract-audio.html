@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>提取音频 - 工具箱</title>
+  <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 780px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 48px 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+
+    /* 视频预览 */
+    .video-wrap { background: #000; display: flex; justify-content: center; }
+    video { max-width: 100%; max-height: 320px; display: block; }
+
+    /* 文件信息 */
+    .file-info { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .file-icon { width: 40px; height: 40px; background: var(--primary-light); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .file-meta { flex: 1; min-width: 0; }
+    .file-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-detail { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    button.sm-link { background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; padding: 4px; text-decoration: underline; }
+    button.sm-link:hover { color: var(--text); }
+
+    /* 设置区 */
+    .settings { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+    .btn-group { display: flex; gap: 6px; }
+    .opt-btn { flex: 1; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; transition: all .15s; }
+    .opt-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+    .opt-btn:hover:not(.active) { border-color: #b0b8c8; }
+
+    /* 时间裁剪 */
+    .trim-toggle { display: flex; align-items: center; gap: 8px; }
+    .trim-toggle label { font-size: 13px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .trim-row { display: flex; gap: 12px; align-items: center; }
+    .time-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .time-field label { font-size: 11px; color: var(--text-muted); }
+    .time-field input { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; background: var(--bg); }
+    .time-field input:focus { border-color: var(--primary); }
+    .trim-hidden { display: none; }
+
+    /* 进度 */
+    .progress-area { padding: 16px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 8px; }
+    .progress-bar-outer { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-bar-inner { height: 100%; background: var(--primary); border-radius: 3px; transition: width .2s; }
+    .progress-label { font-size: 13px; color: var(--text-secondary); }
+
+    /* 结果 */
+    .result-area { padding: 16px; border-top: 1px solid var(--border); display: none; align-items: center; gap: 12px; }
+    .result-icon { font-size: 28px; }
+    .result-info { flex: 1; }
+    .result-name { font-size: 14px; font-weight: 500; }
+    .result-detail { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    audio { display: block; width: 100%; margin-top: 8px; }
+
+    /* 底部按钮 */
+    .actions { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+    button { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; font-weight: 500; }
+    button:hover:not(:disabled) { background: var(--bg); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); flex: 1; }
+    button.primary:hover:not(:disabled) { background: #1d4ed8; }
+    button.download { background: #16a34a; color: #fff; border-color: #16a34a; }
+    button.download:hover:not(:disabled) { background: #15803d; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>🎵 提取音频</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4"><rect x="3" y="3" width="18" height="18" rx="2"/><polygon points="5,17 10,12 13,15 17,10 22,17"/><circle cx="8" cy="8" r="1.5"/></svg>
+    <div>拖放视频到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 MP4、WebM、MOV、AVI 等常见格式</div>
+  </div>
+  <input type="file" id="file-input" accept="video/*,audio/*" style="display:none">
+
+  <div class="card" id="main-card" style="display:none">
+    <!-- 视频预览 -->
+    <div class="video-wrap" id="video-wrap">
+      <video id="video-preview" controls></video>
+    </div>
+
+    <!-- 文件信息 -->
+    <div class="file-info">
+      <div class="file-icon">🎬</div>
+      <div class="file-meta">
+        <div class="file-name" id="file-name"></div>
+        <div class="file-detail" id="file-detail"></div>
+      </div>
+      <button class="sm-link" onclick="loadNew()">换一个</button>
+    </div>
+
+    <!-- 设置 -->
+    <div class="settings">
+      <div class="field">
+        <label>输出格式</label>
+        <div class="btn-group">
+          <div class="opt-btn active" data-fmt="mp3">MP3</div>
+          <div class="opt-btn" data-fmt="wav">WAV（无损）</div>
+        </div>
+      </div>
+
+      <div class="field" id="bitrate-field">
+        <label>MP3 码率</label>
+        <div class="btn-group">
+          <div class="opt-btn" data-br="128">128 kbps</div>
+          <div class="opt-btn active" data-br="192">192 kbps</div>
+          <div class="opt-btn" data-br="320">320 kbps</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>声道</label>
+        <div class="btn-group">
+          <div class="opt-btn active" data-ch="auto">自动</div>
+          <div class="opt-btn" data-ch="stereo">立体声</div>
+          <div class="opt-btn" data-ch="mono">单声道</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="trim-toggle">
+          <label>
+            <input type="checkbox" id="trim-check" onchange="toggleTrim()">
+            裁剪时间段
+          </label>
+        </div>
+        <div class="trim-row trim-hidden" id="trim-row">
+          <div class="time-field">
+            <label>开始时间</label>
+            <input type="text" id="trim-start" placeholder="00:00" value="00:00">
+          </div>
+          <div style="padding-top:20px;color:var(--text-muted)">—</div>
+          <div class="time-field">
+            <label>结束时间</label>
+            <input type="text" id="trim-end" placeholder="00:00" id="trim-end">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 进度 -->
+    <div class="progress-area" id="progress-area">
+      <div class="progress-label" id="progress-label">解码中…</div>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- 结果 -->
+    <div class="result-area" id="result-area">
+      <div class="result-icon">🎵</div>
+      <div class="result-info">
+        <div class="result-name" id="result-name"></div>
+        <div class="result-detail" id="result-detail"></div>
+        <audio id="audio-preview" controls></audio>
+      </div>
+    </div>
+
+    <!-- 底部操作 -->
+    <div class="actions">
+      <button class="primary" id="btn-extract" onclick="extract()">提取音频</button>
+      <button class="download" id="btn-download" onclick="downloadResult()" disabled style="display:none">⬇ 下载</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let videoFile = null;
+  let resultBlob = null;
+  let resultFilename = '';
+  let currentFmt = 'mp3';
+  let currentBr = 192;
+  let currentCh = 'auto';
+
+  // ── 文件加载 ──
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('click', () => document.getElementById('file-input').click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('video/') || f.type.startsWith('audio/'));
+    if (f) loadFile(f);
+  });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('video/') || f.type.startsWith('audio/'));
+    if (f) loadFile(f);
+  });
+  document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  function loadFile(file) {
+    videoFile = file;
+    const url = URL.createObjectURL(file);
+    const video = document.getElementById('video-preview');
+    video.src = url;
+    video.onloadedmetadata = () => {
+      document.getElementById('file-name').textContent = file.name;
+      document.getElementById('file-detail').textContent =
+        `${fmtSize(file.size)} · 时长 ${fmtTime(video.duration)}`;
+      document.getElementById('trim-end').value = fmtTime(video.duration);
+    };
+    dz.classList.add('hidden');
+    document.getElementById('main-card').style.display = '';
+    resetResult();
+  }
+
+  function loadNew() { document.getElementById('file-input').click(); }
+
+  // ── 选项切换 ──
+  document.querySelectorAll('[data-fmt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-fmt]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFmt = btn.dataset.fmt;
+      document.getElementById('bitrate-field').style.display = currentFmt === 'wav' ? 'none' : '';
+    });
+  });
+
+  document.querySelectorAll('[data-br]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-br]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentBr = parseInt(btn.dataset.br);
+    });
+  });
+
+  document.querySelectorAll('[data-ch]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-ch]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentCh = btn.dataset.ch;
+    });
+  });
+
+  function toggleTrim() {
+    const show = document.getElementById('trim-check').checked;
+    document.getElementById('trim-row').classList.toggle('trim-hidden', !show);
+  }
+
+  // ── 提取 ──
+  async function extract() {
+    if (!videoFile) return;
+
+    document.getElementById('btn-extract').disabled = true;
+    document.getElementById('btn-download').style.display = 'none';
+    document.getElementById('result-area').style.display = 'none';
+    resetProgress(true);
+    setProgress(5, '读取文件…');
+
+    try {
+      // 1. 读取 ArrayBuffer
+      const arrayBuffer = await videoFile.arrayBuffer();
+      setProgress(15, '解码音频轨道…');
+
+      // 2. Web Audio API 解码
+      const audioCtx = new AudioContext();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      await audioCtx.close();
+
+      // 3. 裁剪时间段
+      let buffer = audioBuffer;
+      if (document.getElementById('trim-check').checked) {
+        const start = parseTime(document.getElementById('trim-start').value);
+        const end = parseTime(document.getElementById('trim-end').value);
+        buffer = sliceAudioBuffer(audioBuffer, start, end);
+      }
+
+      setProgress(25, '编码中…');
+
+      // 4. 编码
+      let blob;
+      if (currentFmt === 'wav') {
+        blob = encodeWav(buffer, (p) => setProgress(25 + p * 70, `编码中… ${Math.round(p * 100)}%`));
+      } else {
+        blob = await encodeMp3(buffer, currentBr, currentCh, (p) => setProgress(25 + p * 70, `编码中… ${Math.round(p * 100)}%`));
+      }
+
+      setProgress(100, '完成');
+
+      // 5. 显示结果
+      const ext = currentFmt;
+      resultFilename = videoFile.name.replace(/\.[^.]+$/, '') + '.' + ext;
+      resultBlob = blob;
+
+      const url = URL.createObjectURL(blob);
+      document.getElementById('audio-preview').src = url;
+      document.getElementById('result-name').textContent = resultFilename;
+      document.getElementById('result-detail').textContent =
+        `${fmtSize(blob.size)} · ${fmtTime(buffer.duration)} · ${buffer.sampleRate} Hz`;
+
+      document.getElementById('result-area').style.display = 'flex';
+      document.getElementById('btn-download').style.display = '';
+      document.getElementById('btn-download').disabled = false;
+      resetProgress(false);
+
+    } catch (err) {
+      resetProgress(false);
+      if (err.name === 'EncodingError' || err.message?.includes('decode')) {
+        alert('无法解码该文件的音频轨道，请确认视频包含音频，且格式受浏览器支持（推荐 MP4/WebM）。');
+      } else {
+        alert('处理失败：' + err.message);
+      }
+      console.error(err);
+    }
+
+    document.getElementById('btn-extract').disabled = false;
+  }
+
+  // ── WAV 编码 ──
+  function encodeWav(audioBuffer, onProgress) {
+    const numCh = resolveChannels(audioBuffer);
+    const sr = audioBuffer.sampleRate;
+    const left = audioBuffer.getChannelData(0);
+    const right = numCh === 2 ? audioBuffer.getChannelData(Math.min(1, audioBuffer.numberOfChannels - 1)) : left;
+    const samples = left.length;
+    const bytePerSample = 2;
+    const dataLen = samples * numCh * bytePerSample;
+    const buffer = new ArrayBuffer(44 + dataLen);
+    const view = new DataView(buffer);
+    const write = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+    write(0, 'RIFF'); view.setUint32(4, 36 + dataLen, true);
+    write(8, 'WAVE'); write(12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
+    view.setUint32(28, sr * numCh * bytePerSample, true);
+    view.setUint16(32, numCh * bytePerSample, true); view.setUint16(34, 16, true);
+    write(36, 'data'); view.setUint32(40, dataLen, true);
+    let offset = 44;
+    for (let i = 0; i < samples; i++) {
+      view.setInt16(offset, clamp16(left[i]), true); offset += 2;
+      if (numCh === 2) { view.setInt16(offset, clamp16(right[i]), true); offset += 2; }
+    }
+    onProgress && onProgress(1);
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  // ── MP3 编码 (lamejs) ──
+  async function encodeMp3(audioBuffer, bitrate, chMode, onProgress) {
+    const numCh = resolveChannels(audioBuffer, chMode);
+    const sr = audioBuffer.sampleRate;
+    const left = float32ToInt16(audioBuffer.getChannelData(0));
+    const right = numCh === 2
+      ? float32ToInt16(audioBuffer.getChannelData(Math.min(1, audioBuffer.numberOfChannels - 1)))
+      : left;
+
+    const encoder = new lamejs.Mp3Encoder(numCh, sr, bitrate);
+    const mp3Parts = [];
+    const chunkSize = 1152;
+    const total = left.length;
+
+    for (let i = 0; i < total; i += chunkSize) {
+      const l = left.subarray(i, i + chunkSize);
+      const r = right.subarray(i, i + chunkSize);
+      const buf = numCh === 1 ? encoder.encodeBuffer(l) : encoder.encodeBuffer(l, r);
+      if (buf.length > 0) mp3Parts.push(buf);
+
+      if (i % (chunkSize * 50) === 0) {
+        onProgress(i / total);
+        await new Promise(r => setTimeout(r, 0)); // yield to UI
+      }
+    }
+
+    const tail = encoder.flush();
+    if (tail.length > 0) mp3Parts.push(tail);
+    onProgress(1);
+
+    return new Blob(mp3Parts, { type: 'audio/mpeg' });
+  }
+
+  // ── AudioBuffer 切片 ──
+  function sliceAudioBuffer(buf, start, end) {
+    const sr = buf.sampleRate;
+    const s = Math.max(0, Math.floor(start * sr));
+    const e = Math.min(buf.length, Math.floor(end * sr));
+    const length = e - s;
+    const offCtx = new OfflineAudioContext(buf.numberOfChannels, length, sr);
+    const slice = offCtx.createBuffer(buf.numberOfChannels, length, sr);
+    for (let c = 0; c < buf.numberOfChannels; c++) {
+      slice.copyToChannel(buf.getChannelData(c).subarray(s, e), c);
+    }
+    return slice;
+  }
+
+  // ── 工具函数 ──
+  function resolveChannels(buf, mode) {
+    if (mode === 'mono') return 1;
+    if (mode === 'stereo') return 2;
+    return buf.numberOfChannels >= 2 ? 2 : 1;
+  }
+
+  function float32ToInt16(f32) {
+    const i16 = new Int16Array(f32.length);
+    for (let i = 0; i < f32.length; i++) i16[i] = clamp16(f32[i]);
+    return i16;
+  }
+
+  function clamp16(v) {
+    const s = Math.max(-1, Math.min(1, v));
+    return s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+
+  function parseTime(str) {
+    const parts = str.split(':').map(Number);
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return parseFloat(str) || 0;
+  }
+
+  function fmtTime(s) {
+    if (!isFinite(s)) return '--:--';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-label').textContent = label;
+  }
+
+  function resetProgress(show) {
+    document.getElementById('progress-area').style.display = show ? 'flex' : 'none';
+    document.getElementById('progress-bar').style.width = '0%';
+  }
+
+  function resetResult() {
+    resultBlob = null;
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('btn-download').style.display = 'none';
+    document.getElementById('btn-download').disabled = true;
+    resetProgress(false);
+  }
+
+  function downloadResult() {
+    if (!resultBlob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(resultBlob);
+    a.download = resultFilename;
+    a.click();
+  }
+</script>
+</body>
+</html>

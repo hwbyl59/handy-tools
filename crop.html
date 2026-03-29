@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片裁剪 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 60px 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+
+    button { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: #1d4ed8; }
+    button.sm { padding: 5px 12px; font-size: 12px; border-radius: 20px; }
+    button.sm.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .toolbar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: var(--shadow); }
+
+    .section-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .ratio-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .coord-fields { display: flex; gap: 8px; align-items: center; }
+    .coord-field { display: flex; align-items: center; gap: 4px; }
+    .coord-field label { font-size: 12px; color: var(--text-muted); }
+    .coord-field input { width: 72px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; text-align: center; outline: none; }
+    .coord-field input:focus { border-color: var(--primary); }
+
+    .fmt-group { display: flex; gap: 6px; }
+    .fmt-btn { padding: 5px 10px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .fmt-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .workspace { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+    @media (max-width: 780px) { .workspace { grid-template-columns: 1fr; } }
+
+    /* 裁剪画布区 */
+    .canvas-wrap {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 400px; position: relative;
+      background: repeating-conic-gradient(#e0e0e0 0% 25%, #f5f5f5 0% 50%) 0 0 / 20px 20px;
+    }
+    #crop-canvas { display: block; cursor: crosshair; max-width: 100%; }
+
+    /* 预览面板 */
+    .preview-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; }
+    .preview-panel h2 { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .preview-box {
+      border-radius: 8px; overflow: hidden;
+      background: repeating-conic-gradient(#e0e0e0 0% 25%, #f5f5f5 0% 50%) 0 0 / 16px 16px;
+      min-height: 160px; display: flex; align-items: center; justify-content: center;
+    }
+    #preview-canvas { max-width: 100%; max-height: 240px; display: block; }
+    .preview-info { font-size: 12px; color: var(--text-muted); text-align: center; }
+    .preview-placeholder { color: var(--text-muted); font-size: 12px; }
+
+    .action-btns { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+
+    canvas { display: none; }
+    #crop-canvas, #preview-canvas { display: block; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>✂️ 图片裁剪</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    <div>拖放图片到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 PNG、JPEG、WebP</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+
+  <div id="editor" style="display:none; flex-direction:column; gap:16px">
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="section-label">比例</span>
+        <div class="ratio-btns">
+          <button class="sm active" data-ratio="free">自由</button>
+          <button class="sm" data-ratio="1:1">1:1</button>
+          <button class="sm" data-ratio="4:3">4:3</button>
+          <button class="sm" data-ratio="16:9">16:9</button>
+          <button class="sm" data-ratio="3:4">3:4</button>
+          <button class="sm" data-ratio="9:16">9:16</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="section-label">选区</span>
+        <div class="coord-fields">
+          <div class="coord-field"><label>X</label><input type="number" id="cx" min="0"></div>
+          <div class="coord-field"><label>Y</label><input type="number" id="cy" min="0"></div>
+          <div class="coord-field"><label>W</label><input type="number" id="cw" min="1"></div>
+          <div class="coord-field"><label>H</label><input type="number" id="ch" min="1"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+        <span class="section-label">格式</span>
+        <div class="fmt-group">
+          <button class="fmt-btn active" data-fmt="image/jpeg">JPEG</button>
+          <button class="fmt-btn" data-fmt="image/png">PNG</button>
+          <button class="fmt-btn" data-fmt="image/webp">WebP</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="crop-canvas"></canvas>
+      </div>
+      <div class="preview-panel">
+        <h2>裁剪预览</h2>
+        <div class="preview-box" id="preview-box">
+          <span class="preview-placeholder">在图片上拖拽选区</span>
+        </div>
+        <div class="preview-info" id="preview-info"></div>
+        <div class="action-btns">
+          <button onclick="selectAll()">全选</button>
+          <button onclick="loadNew()">换一张</button>
+          <button class="primary" onclick="download()">裁剪并下载</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<canvas id="offscreen"></canvas>
+
+<script>
+  let img = null, imgFile = null;
+  let scale = 1; // canvas display scale vs actual image
+  let sel = { x: 0, y: 0, w: 0, h: 0 }; // in actual image coords
+  let dragging = false, resizing = false, moving = false;
+  let dragStart = { x: 0, y: 0 };
+  let activeHandle = null;
+  let currentRatio = 'free';
+  let currentFmt = 'image/jpeg';
+  const HANDLE_SIZE = 8;
+
+  document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; });
+
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); const f = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+
+  function loadFile(file) {
+    imgFile = file;
+    const url = URL.createObjectURL(file);
+    img = new Image();
+    img.onload = () => {
+      dz.classList.add('hidden');
+      document.getElementById('editor').style.display = 'flex';
+      initCanvas();
+      selectAll();
+    };
+    img.src = url;
+  }
+
+  function loadNew() { document.getElementById('file-input').click(); }
+
+  function initCanvas() {
+    const canvas = document.getElementById('crop-canvas');
+    const wrap = document.getElementById('canvas-wrap');
+    const maxW = wrap.clientWidth - 32;
+    const maxH = Math.max(400, window.innerHeight - 320);
+    scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    redraw();
+  }
+
+  function selectAll() {
+    sel = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
+    syncInputs();
+    redraw();
+    updatePreview();
+  }
+
+  // 坐标转换：canvas px → image px
+  function toImgCoords(cx, cy) {
+    return { x: Math.round(cx / scale), y: Math.round(cy / scale) };
+  }
+
+  // 获取8个手柄 (canvas coords)
+  function getHandles() {
+    const sx = sel.x * scale, sy = sel.y * scale, sw = sel.w * scale, sh = sel.h * scale;
+    const h = HANDLE_SIZE;
+    return [
+      { id: 'nw', x: sx - h/2, y: sy - h/2 },
+      { id: 'n',  x: sx + sw/2 - h/2, y: sy - h/2 },
+      { id: 'ne', x: sx + sw - h/2, y: sy - h/2 },
+      { id: 'e',  x: sx + sw - h/2, y: sy + sh/2 - h/2 },
+      { id: 'se', x: sx + sw - h/2, y: sy + sh - h/2 },
+      { id: 's',  x: sx + sw/2 - h/2, y: sy + sh - h/2 },
+      { id: 'sw', x: sx - h/2, y: sy + sh - h/2 },
+      { id: 'w',  x: sx - h/2, y: sy + sh/2 - h/2 },
+    ];
+  }
+
+  function hitHandle(cx, cy) {
+    for (const h of getHandles()) {
+      if (cx >= h.x && cx <= h.x + HANDLE_SIZE && cy >= h.y && cy <= h.y + HANDLE_SIZE) return h.id;
+    }
+    return null;
+  }
+
+  function insideSel(cx, cy) {
+    const sx = sel.x * scale, sy = sel.y * scale;
+    return cx >= sx && cx <= sx + sel.w * scale && cy >= sy && cy <= sy + sel.h * scale;
+  }
+
+  const canvas = document.getElementById('crop-canvas');
+
+  canvas.addEventListener('mousedown', e => {
+    const r = canvas.getBoundingClientRect();
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+    activeHandle = hitHandle(cx, cy);
+    if (activeHandle) {
+      resizing = true;
+      dragStart = { x: cx, y: cy, sel: { ...sel } };
+    } else if (insideSel(cx, cy)) {
+      moving = true;
+      dragStart = { x: cx, y: cy, sel: { ...sel } };
+    } else {
+      dragging = true;
+      const ic = toImgCoords(cx, cy);
+      sel = { x: ic.x, y: ic.y, w: 0, h: 0 };
+      dragStart = { x: cx, y: cy, ix: ic.x, iy: ic.y };
+    }
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    const cx = e.clientX - r.left, cy = e.clientY - r.top;
+
+    if (dragging) {
+      const ic = toImgCoords(cx, cy);
+      let x = Math.min(dragStart.ix, ic.x), y = Math.min(dragStart.iy, ic.y);
+      let w = Math.abs(ic.x - dragStart.ix), h = Math.abs(ic.y - dragStart.iy);
+      if (currentRatio !== 'free') {
+        const [rw, rh] = currentRatio.split(':').map(Number);
+        h = Math.round(w * rh / rw);
+        if (ic.y < dragStart.iy) y = dragStart.iy - h;
+      }
+      sel = clamp({ x, y, w, h });
+      syncInputs(); redraw();
+    } else if (moving) {
+      const dx = Math.round((cx - dragStart.x) / scale);
+      const dy = Math.round((cy - dragStart.y) / scale);
+      sel = clamp({ ...dragStart.sel, x: dragStart.sel.x + dx, y: dragStart.sel.y + dy });
+      syncInputs(); redraw();
+    } else if (resizing) {
+      resizeHandle(activeHandle, cx, cy);
+      syncInputs(); redraw();
+    } else {
+      // cursor
+      const h = hitHandle(cx, cy);
+      const cursors = { nw: 'nw-resize', ne: 'ne-resize', se: 'se-resize', sw: 'sw-resize', n: 'n-resize', s: 's-resize', e: 'e-resize', w: 'w-resize' };
+      canvas.style.cursor = h ? cursors[h] : insideSel(cx, cy) ? 'move' : 'crosshair';
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (dragging || resizing || moving) { dragging = resizing = moving = false; updatePreview(); }
+  });
+
+  function resizeHandle(hid, cx, cy) {
+    const ic = toImgCoords(cx, cy);
+    let { x, y, w, h } = dragStart.sel;
+    const r2 = x + w, b2 = y + h;
+
+    if (hid.includes('n')) { const ny = Math.min(ic.y, b2 - 1); y = ny; h = b2 - ny; }
+    if (hid.includes('s')) { h = Math.max(1, ic.y - y); }
+    if (hid.includes('w')) { const nx = Math.min(ic.x, r2 - 1); x = nx; w = r2 - nx; }
+    if (hid.includes('e')) { w = Math.max(1, ic.x - x); }
+
+    if (currentRatio !== 'free') {
+      const [rw, rh] = currentRatio.split(':').map(Number);
+      if (hid === 'e' || hid === 'w') h = Math.round(w * rh / rw);
+      else w = Math.round(h * rw / rh);
+    }
+    sel = clamp({ x, y, w, h });
+  }
+
+  function clamp(s) {
+    let { x, y, w, h } = s;
+    w = Math.max(1, w); h = Math.max(1, h);
+    x = Math.max(0, Math.min(x, img.naturalWidth - 1));
+    y = Math.max(0, Math.min(y, img.naturalHeight - 1));
+    w = Math.min(w, img.naturalWidth - x);
+    h = Math.min(h, img.naturalHeight - y);
+    return { x, y, w, h };
+  }
+
+  function redraw() {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    if (!sel.w || !sel.h) return;
+
+    // 暗化遮罩
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(sel.x * scale, sel.y * scale, sel.w * scale, sel.h * scale);
+    ctx.drawImage(img, sel.x, sel.y, sel.w, sel.h, sel.x * scale, sel.y * scale, sel.w * scale, sel.h * scale);
+
+    // 边框
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(sel.x * scale + 0.5, sel.y * scale + 0.5, sel.w * scale - 1, sel.h * scale - 1);
+
+    // 三分线
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 3; i++) {
+      const x = sel.x * scale + sel.w * scale * i / 3;
+      const y = sel.y * scale + sel.h * scale * i / 3;
+      ctx.beginPath(); ctx.moveTo(x, sel.y * scale); ctx.lineTo(x, (sel.y + sel.h) * scale); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sel.x * scale, y); ctx.lineTo((sel.x + sel.w) * scale, y); ctx.stroke();
+    }
+
+    // 手柄
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = var_primary();
+    ctx.lineWidth = 1.5;
+    for (const h of getHandles()) {
+      ctx.fillRect(h.x, h.y, HANDLE_SIZE, HANDLE_SIZE);
+      ctx.strokeRect(h.x + 0.5, h.y + 0.5, HANDLE_SIZE - 1, HANDLE_SIZE - 1);
+    }
+  }
+
+  function var_primary() { return '#2563eb'; }
+
+  function syncInputs() {
+    document.getElementById('cx').value = sel.x;
+    document.getElementById('cy').value = sel.y;
+    document.getElementById('cw').value = sel.w;
+    document.getElementById('ch').value = sel.h;
+  }
+
+  // 手动输入选区
+  ['cx','cy','cw','ch'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      sel = clamp({
+        x: parseInt(document.getElementById('cx').value) || 0,
+        y: parseInt(document.getElementById('cy').value) || 0,
+        w: parseInt(document.getElementById('cw').value) || 1,
+        h: parseInt(document.getElementById('ch').value) || 1,
+      });
+      redraw(); updatePreview();
+    });
+  });
+
+  // 比例按钮
+  document.querySelectorAll('[data-ratio]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-ratio]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentRatio = btn.dataset.ratio;
+      if (currentRatio !== 'free' && sel.w > 0) {
+        const [rw, rh] = currentRatio.split(':').map(Number);
+        sel.h = Math.round(sel.w * rh / rw);
+        sel = clamp(sel);
+        syncInputs(); redraw(); updatePreview();
+      }
+    });
+  });
+
+  // 格式按钮
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFmt = btn.dataset.fmt;
+    });
+  });
+
+  function updatePreview() {
+    if (!sel.w || !sel.h) return;
+    const off = document.getElementById('offscreen');
+    off.width = sel.w; off.height = sel.h;
+    const ctx = off.getContext('2d');
+    ctx.clearRect(0, 0, sel.w, sel.h);
+    ctx.drawImage(img, sel.x, sel.y, sel.w, sel.h, 0, 0, sel.w, sel.h);
+
+    const box = document.getElementById('preview-box');
+    off.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      box.innerHTML = `<img id="preview-canvas" src="${url}" alt="" style="max-width:100%;max-height:240px;display:block;border-radius:4px;">`;
+      document.getElementById('preview-info').textContent = `${sel.w} × ${sel.h} px`;
+    }, 'image/png');
+  }
+
+  function download() {
+    if (!sel.w || !sel.h) return;
+    const off = document.getElementById('offscreen');
+    off.width = sel.w; off.height = sel.h;
+    const ctx = off.getContext('2d');
+    if (currentFmt !== 'image/png') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, sel.w, sel.h); }
+    else ctx.clearRect(0, 0, sel.w, sel.h);
+    ctx.drawImage(img, sel.x, sel.y, sel.w, sel.h, 0, 0, sel.w, sel.h);
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[currentFmt];
+    const name = imgFile.name.replace(/\.[^.]+$/, '') + `_crop.${ext}`;
+    off.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+    }, currentFmt, 0.95);
+  }
+
+  window.addEventListener('resize', () => img && initCanvas());
+</script>
+</body>
+</html>

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>添加水印 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 1140px; margin: 0 auto; padding: 20px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 60px 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+
+    .workspace { display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
+    @media (max-width: 780px) { .workspace { grid-template-columns: 1fr; } }
+
+    /* 左侧面板 */
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+
+    /* Tab 切换 */
+    .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin: -16px -16px 16px; padding: 0 4px; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* 表单组件 */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 5px; }
+    .field input[type=text], .field select, .field textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 13px; outline: none; transition: border-color .15s; background: var(--bg); color: var(--text);
+    }
+    .field input[type=text]:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); }
+    .field textarea { resize: vertical; min-height: 56px; line-height: 1.5; }
+
+    .slider-row { display: flex; align-items: center; gap: 8px; }
+    .slider-row input[type=range] { flex: 1; accent-color: var(--primary); }
+    .slider-val { font-size: 12px; font-weight: 600; color: var(--primary); min-width: 36px; text-align: right; }
+
+    .color-row { display: flex; align-items: center; gap: 8px; }
+    input[type=color] { width: 36px; height: 30px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; padding: 2px; background: var(--bg); }
+    .color-presets { display: flex; gap: 5px; }
+    .color-dot { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform .15s; }
+    .color-dot:hover { transform: scale(1.2); }
+    .color-dot.active { border-color: var(--primary); }
+
+    /* 位置九宫格 */
+    .pos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 96px; }
+    .pos-cell { aspect-ratio: 1; border-radius: 5px; border: 1.5px solid var(--border); background: var(--bg); cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; font-size: 8px; color: var(--text-muted); }
+    .pos-cell:hover { border-color: var(--primary); background: var(--primary-light); }
+    .pos-cell.active { background: var(--primary); border-color: var(--primary); }
+    .pos-row { display: flex; align-items: center; gap: 12px; }
+    .pos-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+    /* 模式 tab */
+    .mode-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .mode-btn { flex: 1; padding: 6px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); font-size: 12px; font-weight: 500; cursor: pointer; text-align: center; transition: all .15s; }
+    .mode-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+    /* 图片水印上传 */
+    .img-upload { border: 1.5px dashed var(--border); border-radius: 8px; padding: 12px; text-align: center; cursor: pointer; font-size: 12px; color: var(--text-muted); transition: all .15s; }
+    .img-upload:hover { border-color: var(--primary); color: var(--primary); }
+    .img-upload img { max-height: 60px; margin: 0 auto 6px; display: block; }
+
+    button { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); width: 100%; margin-top: 6px; }
+    button.primary:hover { background: #1d4ed8; }
+    button.secondary { width: 100%; margin-top: 6px; }
+
+    /* 右侧画布 */
+    .canvas-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center; min-height: 400px; padding: 16px;
+      background-image: repeating-conic-gradient(#e0e0e0 0% 25%, #f5f5f5 0% 50%);
+      background-size: 20px 20px;
+    }
+    #display-canvas { max-width: 100%; max-height: calc(100vh - 200px); display: block; border-radius: 4px; box-shadow: 0 2px 16px rgba(0,0,0,.12); cursor: move; }
+
+    canvas { display: none; }
+    #display-canvas { display: block; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>🎨 添加水印</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    <div>拖放图片到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 PNG、JPEG、WebP</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+  <input type="file" id="wm-img-input" accept="image/*" style="display:none">
+
+  <div id="workspace" class="workspace" style="display:none">
+    <!-- 左侧设置 -->
+    <div class="panel">
+      <div class="tab-bar">
+        <div class="tab active" data-tab="text">文字水印</div>
+        <div class="tab" data-tab="image">图片水印</div>
+      </div>
+
+      <!-- 文字水印 -->
+      <div class="tab-pane active" id="tab-text">
+        <div class="field">
+          <label>水印文字</label>
+          <textarea id="wm-text" placeholder="输入水印内容…">© 版权所有</textarea>
+        </div>
+        <div class="field">
+          <label>字体大小</label>
+          <div class="slider-row">
+            <input type="range" id="font-size" min="12" max="200" value="48">
+            <span class="slider-val" id="font-size-val">48px</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>颜色</label>
+          <div class="color-row">
+            <input type="color" id="wm-color" value="#ffffff">
+            <div class="color-presets">
+              <div class="color-dot active" style="background:#fff;border:1.5px solid #ddd" data-color="#ffffff"></div>
+              <div class="color-dot" style="background:#000" data-color="#000000"></div>
+              <div class="color-dot" style="background:#ff4d4f" data-color="#ff4d4f"></div>
+              <div class="color-dot" style="background:#1677ff" data-color="#1677ff"></div>
+              <div class="color-dot" style="background:#faad14" data-color="#faad14"></div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>透明度</label>
+          <div class="slider-row">
+            <input type="range" id="wm-opacity" min="5" max="100" value="40">
+            <span class="slider-val" id="wm-opacity-val">40%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>旋转角度</label>
+          <div class="slider-row">
+            <input type="range" id="wm-rotate" min="-180" max="180" value="-30">
+            <span class="slider-val" id="wm-rotate-val">-30°</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>放置方式</label>
+          <div class="mode-tabs">
+            <div class="mode-btn active" data-mode="single">单个</div>
+            <div class="mode-btn" data-mode="tile">平铺</div>
+          </div>
+          <div id="single-opts">
+            <div class="pos-row">
+              <div class="pos-grid" id="pos-grid">
+                <div class="pos-cell" data-pos="tl"></div>
+                <div class="pos-cell" data-pos="tc"></div>
+                <div class="pos-cell" data-pos="tr"></div>
+                <div class="pos-cell" data-pos="ml"></div>
+                <div class="pos-cell active" data-pos="mc"></div>
+                <div class="pos-cell" data-pos="mr"></div>
+                <div class="pos-cell" data-pos="bl"></div>
+                <div class="pos-cell" data-pos="bc"></div>
+                <div class="pos-cell" data-pos="br"></div>
+              </div>
+              <div class="pos-hint">点击定位<br>或直接拖拽<br>画布上的水印</div>
+            </div>
+          </div>
+          <div id="tile-opts" style="display:none">
+            <div class="field" style="margin-top:8px;margin-bottom:0">
+              <label>间距</label>
+              <div class="slider-row">
+                <input type="range" id="tile-gap" min="0" max="400" value="120">
+                <span class="slider-val" id="tile-gap-val">120px</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图片水印 -->
+      <div class="tab-pane" id="tab-image">
+        <div class="field">
+          <label>水印图片</label>
+          <div class="img-upload" id="wm-img-upload">
+            <div id="wm-img-preview">点击选择水印图片<br><span style="font-size:11px">PNG（推荐透明背景）</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>大小（相对于原图宽度）</label>
+          <div class="slider-row">
+            <input type="range" id="wm-img-size" min="5" max="80" value="25">
+            <span class="slider-val" id="wm-img-size-val">25%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>透明度</label>
+          <div class="slider-row">
+            <input type="range" id="wm-img-opacity" min="5" max="100" value="70">
+            <span class="slider-val" id="wm-img-opacity-val">70%</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>放置方式</label>
+          <div class="mode-tabs">
+            <div class="mode-btn active" data-mode="single" data-scope="img">单个</div>
+            <div class="mode-btn" data-mode="tile" data-scope="img">平铺</div>
+          </div>
+          <div id="img-single-opts">
+            <div class="pos-row" style="margin-top:8px">
+              <div class="pos-grid" id="pos-grid-img">
+                <div class="pos-cell" data-pos="tl"></div>
+                <div class="pos-cell" data-pos="tc"></div>
+                <div class="pos-cell" data-pos="tr"></div>
+                <div class="pos-cell" data-pos="ml"></div>
+                <div class="pos-cell active" data-pos="mc"></div>
+                <div class="pos-cell" data-pos="mr"></div>
+                <div class="pos-cell" data-pos="bl"></div>
+                <div class="pos-cell" data-pos="bc"></div>
+                <div class="pos-cell" data-pos="br"></div>
+              </div>
+              <div class="pos-hint">点击定位<br>或拖拽水印</div>
+            </div>
+          </div>
+          <div id="img-tile-opts" style="display:none">
+            <div class="field" style="margin-top:8px;margin-bottom:0">
+              <label>间距</label>
+              <div class="slider-row">
+                <input type="range" id="img-tile-gap" min="0" max="400" value="80">
+                <span class="slider-val" id="img-tile-gap-val">80px</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="secondary" onclick="loadNew()">换一张图片</button>
+      <button class="primary" onclick="download()">下载结果</button>
+    </div>
+
+    <!-- 右侧预览 -->
+    <div class="canvas-panel">
+      <canvas id="display-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<canvas id="offscreen"></canvas>
+
+<script>
+  let img = null, imgFile = null;
+  let wmImg = null;
+  let activeTab = 'text'; // 'text' | 'image'
+  let textMode = 'single', imgMode = 'single';
+  let textPos = 'mc', imgPos = 'mc';
+  // 自由拖拽位置（图片坐标，null 表示用 pos 预设）
+  let customPos = null;
+  let draggingWm = false, dragStartMouse = null, dragStartPos = null;
+  let scale = 1;
+
+  // ── 文件加载 ──
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('click', () => document.getElementById('file-input').click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); const f = [...e.dataTransfer.files].find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; });
+
+  function loadFile(file) {
+    imgFile = file;
+    const url = URL.createObjectURL(file);
+    img = new Image();
+    img.onload = () => { customPos = null; initCanvas(); };
+    img.src = url;
+  }
+
+  function loadNew() { document.getElementById('file-input').click(); }
+
+  // 水印图片
+  document.getElementById('wm-img-upload').addEventListener('click', () => document.getElementById('wm-img-input').click());
+  document.getElementById('wm-img-input').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    const url = URL.createObjectURL(f);
+    wmImg = new Image();
+    wmImg.onload = () => {
+      const prev = document.getElementById('wm-img-preview');
+      prev.innerHTML = `<img src="${url}" style="max-height:60px;object-fit:contain;border-radius:4px">`;
+      redraw();
+    };
+    wmImg.src = url;
+    e.target.value = '';
+  });
+
+  // ── Tab ──
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      activeTab = t.dataset.tab;
+      document.getElementById('tab-' + activeTab).classList.add('active');
+      customPos = null;
+      redraw();
+    });
+  });
+
+  // ── 模式切换 ──
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const scope = btn.dataset.scope || 'text';
+      btn.closest('.mode-tabs').querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (scope === 'img') {
+        imgMode = btn.dataset.mode;
+        document.getElementById('img-single-opts').style.display = imgMode === 'single' ? '' : 'none';
+        document.getElementById('img-tile-opts').style.display = imgMode === 'tile' ? '' : 'none';
+      } else {
+        textMode = btn.dataset.mode;
+        document.getElementById('single-opts').style.display = textMode === 'single' ? '' : 'none';
+        document.getElementById('tile-opts').style.display = textMode === 'tile' ? '' : 'none';
+      }
+      customPos = null;
+      redraw();
+    });
+  });
+
+  // ── 位置九宫格 ──
+  function setupPosGrid(gridId, onSelect) {
+    document.querySelectorAll(`#${gridId} .pos-cell`).forEach(cell => {
+      cell.addEventListener('click', () => {
+        document.querySelectorAll(`#${gridId} .pos-cell`).forEach(c => c.classList.remove('active'));
+        cell.classList.add('active');
+        onSelect(cell.dataset.pos);
+        customPos = null;
+        redraw();
+      });
+    });
+  }
+  setupPosGrid('pos-grid', p => { textPos = p; });
+  setupPosGrid('pos-grid-img', p => { imgPos = p; });
+
+  // ── 颜色预设 ──
+  document.querySelectorAll('.color-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      dot.classList.add('active');
+      document.getElementById('wm-color').value = dot.dataset.color;
+      redraw();
+    });
+  });
+  document.getElementById('wm-color').addEventListener('input', () => {
+    document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+    redraw();
+  });
+
+  // ── 滑块联动 ──
+  function bindSlider(id, valId, suffix, cb) {
+    const el = document.getElementById(id);
+    const val = document.getElementById(valId);
+    el.addEventListener('input', () => { val.textContent = el.value + suffix; cb && cb(); redraw(); });
+  }
+  bindSlider('font-size', 'font-size-val', 'px');
+  bindSlider('wm-opacity', 'wm-opacity-val', '%');
+  bindSlider('wm-rotate', 'wm-rotate-val', '°');
+  bindSlider('tile-gap', 'tile-gap-val', 'px');
+  bindSlider('wm-img-size', 'wm-img-size-val', '%');
+  bindSlider('wm-img-opacity', 'wm-img-opacity-val', '%');
+  bindSlider('img-tile-gap', 'img-tile-gap-val', 'px');
+  document.getElementById('wm-text').addEventListener('input', () => redraw());
+
+  // ── 拖拽水印 ──
+  const displayCanvas = document.getElementById('display-canvas');
+  displayCanvas.addEventListener('mousedown', e => {
+    if (!img) return;
+    draggingWm = true;
+    dragStartMouse = { x: e.clientX, y: e.clientY };
+    dragStartPos = customPos ? { ...customPos } : getPresetPos();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!draggingWm) return;
+    const dx = Math.round((e.clientX - dragStartMouse.x) / scale);
+    const dy = Math.round((e.clientY - dragStartMouse.y) / scale);
+    customPos = { x: dragStartPos.x + dx, y: dragStartPos.y + dy };
+    redraw();
+  });
+  window.addEventListener('mouseup', () => { draggingWm = false; });
+
+  // ── 初始化画布 ──
+  function initCanvas() {
+    dz.classList.add('hidden');
+    document.getElementById('workspace').style.display = 'grid';
+    const wrap = displayCanvas.parentElement;
+    const maxW = wrap.clientWidth - 32;
+    const maxH = Math.max(400, window.innerHeight - 220);
+    scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight);
+    displayCanvas.width = Math.round(img.naturalWidth * scale);
+    displayCanvas.height = Math.round(img.naturalHeight * scale);
+    redraw();
+  }
+
+  window.addEventListener('resize', () => img && initCanvas());
+
+  // ── 位置预设 → 图片坐标 ──
+  function getPresetPos() {
+    const pos = activeTab === 'text' ? textPos : imgPos;
+    const wmSize = getWmSize();
+    const pad = 20;
+    const cols = { l: pad + wmSize.w / 2, c: img.naturalWidth / 2, r: img.naturalWidth - pad - wmSize.w / 2 };
+    const rows = { t: pad + wmSize.h / 2, m: img.naturalHeight / 2, b: img.naturalHeight - pad - wmSize.h / 2 };
+    const map = { tl: [cols.l, rows.t], tc: [cols.c, rows.t], tr: [cols.r, rows.t], ml: [cols.l, rows.m], mc: [cols.c, rows.m], mr: [cols.r, rows.m], bl: [cols.l, rows.b], bc: [cols.c, rows.b], br: [cols.r, rows.b] };
+    const [x, y] = map[pos] || map['mc'];
+    return { x, y };
+  }
+
+  // ── 获取水印尺寸（粗略，用于定位计算）──
+  function getWmSize() {
+    if (activeTab === 'text') {
+      const fs = parseInt(document.getElementById('font-size').value);
+      const text = document.getElementById('wm-text').value || '水印';
+      return { w: text.length * fs * 0.7, h: fs };
+    } else {
+      if (!wmImg) return { w: 100, h: 100 };
+      const pct = parseInt(document.getElementById('wm-img-size').value) / 100;
+      const w = img.naturalWidth * pct;
+      const h = wmImg.naturalHeight * (w / wmImg.naturalWidth);
+      return { w, h };
+    }
+  }
+
+  // ── 主绘制函数 ──
+  function redraw() {
+    const canvas = displayCanvas;
+    if (!img) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.scale(scale, scale);
+    ctx.drawImage(img, 0, 0);
+    drawWatermarks(ctx);
+    ctx.restore();
+  }
+
+  function drawWatermarks(ctx) {
+    if (activeTab === 'text') drawTextWm(ctx);
+    else drawImgWm(ctx);
+  }
+
+  function drawTextWm(ctx) {
+    const text = document.getElementById('wm-text').value;
+    if (!text.trim()) return;
+    const fontSize = parseInt(document.getElementById('font-size').value);
+    const color = document.getElementById('wm-color').value;
+    const opacity = parseInt(document.getElementById('wm-opacity').value) / 100;
+    const rotate = parseInt(document.getElementById('wm-rotate').value) * Math.PI / 180;
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.font = `bold ${fontSize}px "PingFang SC", "Microsoft YaHei", sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (textMode === 'tile') {
+      const gap = parseInt(document.getElementById('tile-gap').value);
+      const metrics = ctx.measureText(text);
+      const wmW = metrics.width + gap;
+      const wmH = fontSize + gap;
+      ctx.save();
+      ctx.translate(img.naturalWidth / 2, img.naturalHeight / 2);
+      ctx.rotate(rotate);
+      const cols = Math.ceil(img.naturalWidth * 2 / wmW) + 2;
+      const rows = Math.ceil(img.naturalHeight * 2 / wmH) + 2;
+      for (let r = -rows; r <= rows; r++) {
+        for (let c = -cols; c <= cols; c++) {
+          ctx.fillText(text, c * wmW, r * wmH);
+        }
+      }
+      ctx.restore();
+    } else {
+      const pos = customPos || getPresetPos();
+      ctx.translate(pos.x, pos.y);
+      ctx.rotate(rotate);
+      ctx.fillText(text, 0, 0);
+    }
+    ctx.restore();
+  }
+
+  function drawImgWm(ctx) {
+    if (!wmImg) return;
+    const pct = parseInt(document.getElementById('wm-img-size').value) / 100;
+    const opacity = parseInt(document.getElementById('wm-img-opacity').value) / 100;
+    const wmW = Math.round(img.naturalWidth * pct);
+    const wmH = Math.round(wmImg.naturalHeight * (wmW / wmImg.naturalWidth));
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+
+    if (imgMode === 'tile') {
+      const gap = parseInt(document.getElementById('img-tile-gap').value);
+      const stepX = wmW + gap, stepY = wmH + gap;
+      for (let y = 0; y < img.naturalHeight; y += stepY) {
+        for (let x = 0; x < img.naturalWidth; x += stepX) {
+          ctx.drawImage(wmImg, x, y, wmW, wmH);
+        }
+      }
+    } else {
+      const pos = customPos || getPresetPos();
+      ctx.drawImage(wmImg, pos.x - wmW / 2, pos.y - wmH / 2, wmW, wmH);
+    }
+    ctx.restore();
+  }
+
+  // ── 下载 ──
+  function download() {
+    if (!img || !imgFile) return;
+    const off = document.getElementById('offscreen');
+    off.width = img.naturalWidth;
+    off.height = img.naturalHeight;
+    const ctx = off.getContext('2d');
+    ctx.clearRect(0, 0, off.width, off.height);
+    ctx.drawImage(img, 0, 0);
+    drawWatermarks(ctx);
+
+    const ext = imgFile.name.match(/\.(png|gif|webp)$/i) ? imgFile.name.match(/\.(\w+)$/i)[1].toLowerCase() : 'jpg';
+    const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+    const name = imgFile.name.replace(/\.[^.]+$/, '') + '_watermark.' + ext;
+    off.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+    }, mime, 0.95);
+  }
+</script>
+</body>
+</html>

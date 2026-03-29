@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>调整尺寸 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; }
+
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+
+    button { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: #1d4ed8; }
+    button.sm { padding: 4px 10px; font-size: 12px; }
+    button.preset { padding: 5px 12px; font-size: 12px; border-radius: 20px; }
+    button.preset.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+    .workspace { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+    @media (max-width: 700px) { .workspace { grid-template-columns: 1fr; } }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+    .panel h2 { font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
+
+    .origin-info { display: flex; gap: 12px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .origin-info img { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; background: var(--bg); flex-shrink: 0; }
+    .origin-info .info-text { flex: 1; min-width: 0; }
+    .origin-info .name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .origin-info .dims { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .origin-info .size { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    .section-title { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 10px; }
+
+    /* 百分比预设 */
+    .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+
+    /* 宽高输入 */
+    .dims-input { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+    .dim-field { display: flex; flex-direction: column; gap: 4px; }
+    .dim-field label { font-size: 11px; color: var(--text-muted); }
+    .dim-field input { width: 90px; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 500; text-align: center; outline: none; transition: border-color .15s; }
+    .dim-field input:focus { border-color: var(--primary); }
+    .lock-btn { margin-top: 16px; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; padding: 0; flex-shrink: 0; }
+    .lock-btn.locked { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+
+    .output-fmt { display: flex; gap: 6px; margin-bottom: 20px; }
+    .fmt-btn { padding: 5px 12px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg); font-size: 12px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .fmt-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* 预览 */
+    .preview-wrap { display: flex; align-items: center; justify-content: center; min-height: 300px; background: repeating-conic-gradient(#e8e8e8 0% 25%, #f5f5f5 0% 50%) 0 0 / 20px 20px; border-radius: 8px; }
+    .preview-wrap img { max-width: 100%; max-height: 400px; object-fit: contain; display: block; border-radius: 4px; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
+    .preview-placeholder { color: var(--text-muted); font-size: 13px; }
+    .result-info { text-align: center; margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+    .result-info strong { color: var(--text); }
+
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>↔️ 调整尺寸</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    <div>拖放图片到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 PNG、JPEG、WebP</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" style="display:none">
+
+  <div id="workspace" class="workspace" style="display:none">
+    <!-- 左侧控制面板 -->
+    <div class="panel">
+      <div class="origin-info">
+        <img id="thumb" src="" alt="">
+        <div class="info-text">
+          <div class="name" id="orig-name"></div>
+          <div class="dims" id="orig-dims"></div>
+          <div class="size" id="orig-size"></div>
+        </div>
+      </div>
+
+      <div class="section-title">快速缩放</div>
+      <div class="presets">
+        <button class="preset" onclick="applyPct(25)">25%</button>
+        <button class="preset" onclick="applyPct(50)">50%</button>
+        <button class="preset" onclick="applyPct(75)">75%</button>
+        <button class="preset" onclick="applyPct(100)" id="pct100">100%</button>
+        <button class="preset" onclick="applyPct(150)">150%</button>
+        <button class="preset" onclick="applyPct(200)">200%</button>
+      </div>
+
+      <div class="section-title">自定义尺寸</div>
+      <div class="dims-input">
+        <div class="dim-field">
+          <label>宽度 (px)</label>
+          <input type="number" id="w-input" min="1" placeholder="宽">
+        </div>
+        <button class="sm lock-btn locked" id="lock-btn" title="锁定比例" onclick="toggleLock()">🔒</button>
+        <div class="dim-field">
+          <label>高度 (px)</label>
+          <input type="number" id="h-input" min="1" placeholder="高">
+        </div>
+      </div>
+
+      <div class="section-title">输出格式</div>
+      <div class="output-fmt">
+        <button class="fmt-btn active" data-fmt="image/jpeg">JPEG</button>
+        <button class="fmt-btn" data-fmt="image/png">PNG</button>
+        <button class="fmt-btn" data-fmt="image/webp">WebP</button>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button onclick="loadNew()">换一张</button>
+        <button class="primary" style="flex:1" onclick="download()">下载</button>
+      </div>
+    </div>
+
+    <!-- 右侧预览 -->
+    <div class="panel">
+      <h2>预览</h2>
+      <div class="preview-wrap" id="preview-wrap">
+        <span class="preview-placeholder">调整参数后在此预览</span>
+      </div>
+      <div class="result-info" id="result-info"></div>
+    </div>
+  </div>
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+  let origImg = null, origFile = null;
+  let locked = true;
+  let currentFmt = 'image/jpeg';
+
+  document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; });
+
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); const f = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/')); if (f) loadFile(f); });
+
+  function loadFile(file) {
+    origFile = file;
+    const url = URL.createObjectURL(file);
+    origImg = new Image();
+    origImg.onload = () => {
+      document.getElementById('orig-name').textContent = file.name;
+      document.getElementById('orig-dims').textContent = `${origImg.naturalWidth} × ${origImg.naturalHeight} px`;
+      document.getElementById('orig-size').textContent = fmtSize(file.size);
+      document.getElementById('thumb').src = url;
+      document.getElementById('w-input').value = origImg.naturalWidth;
+      document.getElementById('h-input').value = origImg.naturalHeight;
+      dz.classList.add('hidden');
+      document.getElementById('workspace').style.display = 'grid';
+      updatePreview();
+    };
+    origImg.src = url;
+  }
+
+  function loadNew() {
+    document.getElementById('file-input').click();
+  }
+
+  // 宽高联动
+  document.getElementById('w-input').addEventListener('input', function () {
+    if (locked && origImg) {
+      document.getElementById('h-input').value = Math.round(this.value / origImg.naturalWidth * origImg.naturalHeight);
+    }
+    updatePreview();
+  });
+  document.getElementById('h-input').addEventListener('input', function () {
+    if (locked && origImg) {
+      document.getElementById('w-input').value = Math.round(this.value / origImg.naturalHeight * origImg.naturalWidth);
+    }
+    updatePreview();
+  });
+
+  function toggleLock() {
+    locked = !locked;
+    const btn = document.getElementById('lock-btn');
+    btn.textContent = locked ? '🔒' : '🔓';
+    btn.classList.toggle('locked', locked);
+  }
+
+  function applyPct(pct) {
+    if (!origImg) return;
+    document.getElementById('w-input').value = Math.round(origImg.naturalWidth * pct / 100);
+    document.getElementById('h-input').value = Math.round(origImg.naturalHeight * pct / 100);
+    updatePreview();
+  }
+
+  // 格式按钮
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFmt = btn.dataset.fmt;
+      updatePreview();
+    });
+  });
+
+  function updatePreview() {
+    if (!origImg) return;
+    const w = parseInt(document.getElementById('w-input').value);
+    const h = parseInt(document.getElementById('h-input').value);
+    if (!w || !h) return;
+
+    const canvas = document.getElementById('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (currentFmt !== 'image/png') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+    else ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(origImg, 0, 0, w, h);
+
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const wrap = document.getElementById('preview-wrap');
+      wrap.innerHTML = `<img src="${url}" alt="">`;
+      document.getElementById('result-info').innerHTML =
+        `<strong>${w} × ${h}</strong> px · 约 ${fmtSize(blob.size)}`;
+    }, currentFmt, 0.9);
+  }
+
+  function download() {
+    if (!origImg) return;
+    const w = parseInt(document.getElementById('w-input').value);
+    const h = parseInt(document.getElementById('h-input').value);
+    if (!w || !h) return;
+    const canvas = document.getElementById('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (currentFmt !== 'image/png') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); }
+    else ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(origImg, 0, 0, w, h);
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[currentFmt];
+    const name = origFile.name.replace(/\.[^.]+$/, '') + `_${w}x${h}.${ext}`;
+    canvas.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+    }, currentFmt, 0.9);
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+</script>
+</body>
+</html>

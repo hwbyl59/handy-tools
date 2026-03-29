@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --border: #e8eaed;
+      --text: #1f2329;
+      --text-secondary: #646a73;
+      --text-muted: #8f959e;
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+      --shadow-hover: 0 4px 12px rgba(0,0,0,.1), 0 8px 24px rgba(0,0,0,.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── 顶部导航 ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 4px;
+      list-style: none;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: background .15s, color .15s;
+    }
+    .nav-links a:hover, .nav-links a.active {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .nav-search {
+      margin-left: auto;
+      position: relative;
+    }
+    .nav-search input {
+      width: 220px;
+      padding: 7px 12px 7px 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, width .2s;
+    }
+    .nav-search input:focus {
+      border-color: var(--primary);
+      width: 260px;
+    }
+    .nav-search svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 64px 32px 48px;
+    }
+    .hero h1 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -.5px;
+      margin-bottom: 12px;
+    }
+    .hero h1 span { color: var(--primary); }
+    .hero p {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── 主内容 ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 32px 80px;
+    }
+
+    /* ── 分类标题 ── */
+    .category {
+      margin-bottom: 48px;
+    }
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .category-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .category-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .category-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+    .category-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ── 工具卡片网格 ── */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: var(--shadow);
+      transition: box-shadow .2s, transform .2s, border-color .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .tool-card:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+      border-color: #d0d7e0;
+    }
+    .tool-card.coming-soon {
+      opacity: .6;
+      cursor: default;
+      pointer-events: none;
+    }
+    .tool-card.coming-soon::after {
+      content: "即将上线";
+      position: absolute;
+      top: 10px;
+      right: -18px;
+      background: #f3f4f6;
+      color: var(--text-muted);
+      font-size: 10px;
+      padding: 2px 20px;
+      transform: rotate(35deg);
+      border: 1px solid var(--border);
+    }
+
+    .tool-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .tool-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .tool-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* 颜色主题 */
+    .theme-blue   { background: #eff6ff; }
+    .theme-purple { background: #f5f3ff; }
+    .theme-green  { background: #f0fdf4; }
+    .theme-orange { background: #fff7ed; }
+    .theme-pink   { background: #fdf2f8; }
+    .theme-cyan   { background: #ecfeff; }
+    .theme-red    { background: #fef2f2; }
+    .theme-yellow { background: #fefce8; }
+
+    /* ── 页脚 ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="logo">
+    <div class="logo-icon">🧰</div>
+    工具箱
+  </a>
+  <ul class="nav-links">
+    <li><a href="#image" class="active">图片工具</a></li>
+    <li><a href="#audio">音频工具</a></li>
+    <li><a href="#video">视频工具</a></li>
+    <li><a href="#text">文本工具</a></li>
+  </ul>
+  <div class="nav-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" placeholder="搜索工具…" id="search-input">
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>在线<span>工具箱</span></h1>
+  <p>免费、快速、无需上传到服务器<br>所有处理均在浏览器本地完成，保护你的隐私</p>
+</div>
+
+<main>
+
+  <!-- 图片工具 -->
+  <section class="category" id="image">
+    <div class="category-header">
+      <div class="category-icon theme-blue">🖼️</div>
+      <div>
+        <div class="category-title">图片工具</div>
+        <div class="category-desc">压缩、裁剪、格式转换、合并拼图……</div>
+      </div>
+      <span class="category-count">6 / 6 可用</span>
+    </div>
+    <div class="tool-grid" id="image-tools">
+      <a href="merge_images.html" class="tool-card">
+        <div class="tool-icon theme-blue">🔗</div>
+        <div class="tool-name">图片合并</div>
+        <div class="tool-desc">将多张图片按行列网格拼接为一张，支持拖拽排序</div>
+      </a>
+      <a href="compress.html" class="tool-card">
+        <div class="tool-icon theme-purple">🗜️</div>
+        <div class="tool-name">图片压缩</div>
+        <div class="tool-desc">在浏览器中压缩 PNG / JPEG，调整质量与尺寸</div>
+      </a>
+      <a href="crop.html" class="tool-card">
+        <div class="tool-icon theme-green">✂️</div>
+        <div class="tool-name">图片裁剪</div>
+        <div class="tool-desc">自由裁剪或按固定比例裁剪图片</div>
+      </a>
+      <a href="resize.html" class="tool-card">
+        <div class="tool-icon theme-orange">↔️</div>
+        <div class="tool-name">调整尺寸</div>
+        <div class="tool-desc">批量修改图片宽高，保持或忽略长宽比</div>
+      </a>
+      <a href="convert.html" class="tool-card">
+        <div class="tool-icon theme-cyan">🔄</div>
+        <div class="tool-name">格式转换</div>
+        <div class="tool-desc">PNG / JPEG / WebP 互相转换</div>
+      </a>
+      <a href="watermark.html" class="tool-card">
+        <div class="tool-icon theme-pink">🎨</div>
+        <div class="tool-name">添加水印</div>
+        <div class="tool-desc">给图片添加文字或图片水印，支持平铺和自由拖拽</div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- 音频工具 -->
+  <section class="category" id="audio">
+    <div class="category-header">
+      <div class="category-icon theme-purple">🎵</div>
+      <div>
+        <div class="category-title">音频工具</div>
+        <div class="category-desc">剪辑、合并、格式转换、音量调节……</div>
+      </div>
+      <span class="category-count">0 / 5 可用</span>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-purple">✂️</div>
+        <div class="tool-name">音频剪辑</div>
+        <div class="tool-desc">截取音频片段，导出指定时间范围</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-blue">🔗</div>
+        <div class="tool-name">音频合并</div>
+        <div class="tool-desc">将多段音频首尾拼接为一个文件</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-green">🔄</div>
+        <div class="tool-name">格式转换</div>
+        <div class="tool-desc">MP3 / WAV / OGG / AAC 相互转换</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-orange">🔊</div>
+        <div class="tool-name">音量调节</div>
+        <div class="tool-desc">批量提升或降低音频音量</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-pink">🎙️</div>
+        <div class="tool-name">录音转文字</div>
+        <div class="tool-desc">上传音频，自动转写为文本</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 视频工具 -->
+  <section class="category" id="video">
+    <div class="category-header">
+      <div class="category-icon theme-orange">🎬</div>
+      <div>
+        <div class="category-title">视频工具</div>
+        <div class="category-desc">截图、提取音频、GIF 制作……</div>
+      </div>
+      <span class="category-count">1 / 4 可用</span>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-orange">📸</div>
+        <div class="tool-name">视频截图</div>
+        <div class="tool-desc">从视频中提取指定帧为图片</div>
+      </div>
+      <a href="extract-audio.html" class="tool-card">
+        <div class="tool-icon theme-green">🎵</div>
+        <div class="tool-name">提取音频</div>
+        <div class="tool-desc">从视频文件中分离音轨并下载</div>
+      </a>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-cyan">🌀</div>
+        <div class="tool-name">视频转 GIF</div>
+        <div class="tool-desc">将视频片段转换为 GIF 动图</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-red">🗜️</div>
+        <div class="tool-name">视频压缩</div>
+        <div class="tool-desc">在浏览器中压缩视频文件大小</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 文本工具 -->
+  <section class="category" id="text">
+    <div class="category-header">
+      <div class="category-icon theme-green">📝</div>
+      <div>
+        <div class="category-title">文本工具</div>
+        <div class="category-desc">编码转换、格式化、差异对比……</div>
+      </div>
+      <span class="category-count">0 / 4 可用</span>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-green">{ }</div>
+        <div class="tool-name">JSON 格式化</div>
+        <div class="tool-desc">格式化、压缩、校验 JSON 数据</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-blue">🔐</div>
+        <div class="tool-name">Base64 编解码</div>
+        <div class="tool-desc">文本与 Base64 互相转换</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-yellow">↔️</div>
+        <div class="tool-name">文本对比</div>
+        <div class="tool-desc">高亮显示两段文本的差异</div>
+      </div>
+      <div class="tool-card coming-soon">
+        <div class="tool-icon theme-purple">🔑</div>
+        <div class="tool-name">哈希计算</div>
+        <div class="tool-desc">计算文本或文件的 MD5 / SHA 哈希值</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  所有工具均在浏览器本地运行，文件不会上传到任何服务器
+</footer>
+
+<script>
+  // 搜索过滤
+  document.getElementById('search-input').addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    document.querySelectorAll('.tool-card').forEach(card => {
+      const text = card.textContent.toLowerCase();
+      card.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
+    // 隐藏空分类
+    document.querySelectorAll('.category').forEach(sec => {
+      const visible = [...sec.querySelectorAll('.tool-card')].some(c => c.style.display !== 'none');
+      sec.style.display = visible ? '' : 'none';
+    });
+  });
+
+  // 导航高亮（滚动跟随）
+  const sections = document.querySelectorAll('.category');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(sec => {
+      if (window.scrollY >= sec.offsetTop - 100) current = sec.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

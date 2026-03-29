@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片压缩 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; }
+
+    /* 拖放区 */
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+    .drop-zone svg { margin-bottom: 12px; opacity: .4; }
+
+    /* 设置栏 */
+    .settings { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin: 16px 0; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; box-shadow: var(--shadow); }
+    .settings.hidden { display: none; }
+    .setting-item { display: flex; align-items: center; gap: 10px; }
+    .setting-item label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+    select, input[type=range] { font-size: 13px; }
+    select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); }
+    .quality-wrap { display: flex; align-items: center; gap: 8px; }
+    input[type=range] { width: 120px; accent-color: var(--primary); }
+    .quality-val { font-size: 13px; font-weight: 600; color: var(--primary); width: 32px; }
+    .actions { margin-left: auto; display: flex; gap: 8px; }
+    button { padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: #1d4ed8; }
+    button.sm { padding: 4px 10px; font-size: 12px; }
+
+    /* 图片列表 */
+    .image-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .image-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    .image-card-header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .image-card-header img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--bg); }
+    .image-card-info { flex: 1; min-width: 0; }
+    .image-card-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .image-card-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .image-card-body { display: grid; grid-template-columns: 1fr 1fr; }
+    .preview-pane { padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .preview-pane + .preview-pane { border-left: 1px solid var(--border); }
+    .preview-pane img { max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; background: repeating-conic-gradient(#e0e0e0 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
+    .preview-label { font-size: 11px; color: var(--text-muted); }
+    .preview-size { font-size: 13px; font-weight: 600; }
+    .preview-size.smaller { color: #16a34a; }
+    .reduction { font-size: 11px; color: #16a34a; font-weight: 500; }
+    .card-footer { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    canvas { display: none; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>🗜️ 图片压缩</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+    <div>拖放图片到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 PNG、JPEG、WebP，可多选</div>
+  </div>
+  <input type="file" id="file-input" accept="image/*" multiple style="display:none">
+
+  <div class="settings hidden" id="settings">
+    <div class="setting-item">
+      <label>输出格式</label>
+      <select id="fmt">
+        <option value="auto">保持原格式</option>
+        <option value="image/jpeg">JPEG</option>
+        <option value="image/webp">WebP</option>
+        <option value="image/png">PNG</option>
+      </select>
+    </div>
+    <div class="setting-item">
+      <label>压缩质量</label>
+      <div class="quality-wrap">
+        <input type="range" id="quality" min="10" max="100" value="80">
+        <span class="quality-val" id="quality-val">80</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button onclick="clearAll()">清空</button>
+      <button class="primary" onclick="compressAll()">全部压缩并下载</button>
+    </div>
+  </div>
+
+  <div class="image-list" id="image-list"></div>
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+  const items = [];
+
+  document.getElementById('drop-zone').addEventListener('click', () => document.getElementById('file-input').click());
+  document.getElementById('file-input').addEventListener('change', e => { addFiles(Array.from(e.target.files)); e.target.value = ''; });
+
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))); });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => { e.preventDefault(); addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'))); });
+
+  document.getElementById('quality').addEventListener('input', function () {
+    document.getElementById('quality-val').textContent = this.value;
+    items.forEach((_, i) => recompress(i));
+  });
+  document.getElementById('fmt').addEventListener('change', () => items.forEach((_, i) => recompress(i)));
+
+  function addFiles(files) {
+    files.forEach(file => {
+      const url = URL.createObjectURL(file);
+      const idx = items.length;
+      items.push({ file, url, compressedBlob: null, compressedUrl: null });
+      renderCard(idx);
+      recompress(idx);
+    });
+    dz.classList.add('hidden');
+    document.getElementById('settings').classList.remove('hidden');
+  }
+
+  function clearAll() {
+    items.forEach(it => { URL.revokeObjectURL(it.url); if (it.compressedUrl) URL.revokeObjectURL(it.compressedUrl); });
+    items.length = 0;
+    document.getElementById('image-list').innerHTML = '';
+    dz.classList.remove('hidden');
+    document.getElementById('settings').classList.add('hidden');
+  }
+
+  function renderCard(idx) {
+    const item = items[idx];
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.id = `card-${idx}`;
+    card.innerHTML = `
+      <div class="image-card-header">
+        <img src="${item.url}" alt="">
+        <div class="image-card-info">
+          <div class="image-card-name">${item.file.name}</div>
+          <div class="image-card-meta">${fmtSize(item.file.size)} · 原始</div>
+        </div>
+        <button class="sm" onclick="removeItem(${idx})">删除</button>
+      </div>
+      <div class="image-card-body">
+        <div class="preview-pane">
+          <div class="preview-label">原始</div>
+          <img src="${item.url}" alt="">
+          <div class="preview-size">${fmtSize(item.file.size)}</div>
+        </div>
+        <div class="preview-pane" id="result-pane-${idx}">
+          <div class="preview-label">压缩后</div>
+          <img src="${item.url}" alt="" id="result-img-${idx}">
+          <div class="preview-size" id="result-size-${idx}">计算中…</div>
+          <div class="reduction" id="result-reduction-${idx}"></div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="sm primary" onclick="downloadOne(${idx})">下载</button>
+      </div>
+    `;
+    document.getElementById('image-list').appendChild(card);
+  }
+
+  function recompress(idx) {
+    const item = items[idx];
+    const quality = parseInt(document.getElementById('quality').value) / 100;
+    let fmt = document.getElementById('fmt').value;
+    if (fmt === 'auto') fmt = item.file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (fmt !== 'image/png') { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(blob => {
+        if (item.compressedUrl) URL.revokeObjectURL(item.compressedUrl);
+        item.compressedBlob = blob;
+        item.compressedUrl = URL.createObjectURL(blob);
+        const resultImg = document.getElementById(`result-img-${idx}`);
+        const resultSize = document.getElementById(`result-size-${idx}`);
+        const resultReduction = document.getElementById(`result-reduction-${idx}`);
+        if (resultImg) {
+          resultImg.src = item.compressedUrl;
+          const pct = Math.round((1 - blob.size / item.file.size) * 100);
+          resultSize.textContent = fmtSize(blob.size);
+          if (pct > 0) {
+            resultSize.className = 'preview-size smaller';
+            resultReduction.textContent = `节省 ${pct}%`;
+          } else {
+            resultSize.className = 'preview-size';
+            resultReduction.textContent = '';
+          }
+        }
+      }, fmt, quality);
+    };
+    img.src = item.url;
+  }
+
+  function downloadOne(idx) {
+    const item = items[idx];
+    if (!item.compressedBlob) return;
+    const fmt = document.getElementById('fmt').value;
+    const ext = fmt === 'image/png' ? 'png' : fmt === 'image/webp' ? 'webp' : 'jpg';
+    const name = item.file.name.replace(/\.[^.]+$/, '') + '_compressed.' + ext;
+    const a = document.createElement('a');
+    a.href = item.compressedUrl;
+    a.download = name;
+    a.click();
+  }
+
+  function compressAll() {
+    items.forEach((_, i) => downloadOne(i));
+  }
+
+  function removeItem(idx) {
+    const card = document.getElementById(`card-${idx}`);
+    if (card) card.remove();
+    URL.revokeObjectURL(items[idx].url);
+    if (items[idx].compressedUrl) URL.revokeObjectURL(items[idx].compressedUrl);
+    items[idx] = null;
+    if (items.every(it => it === null)) clearAll();
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+</script>
+</body>
+</html>
