@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>语音转文字 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 780px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 16px; }
+
+    .drop-zone { border: 2px dashed #c8cdd4; border-radius: var(--radius); padding: 48px 40px; text-align: center; color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all .2s; background: var(--surface); }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+    .drop-zone.hidden { display: none; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+
+    .file-info { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .file-icon { width: 40px; height: 40px; background: var(--primary-light); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+    .file-meta { flex: 1; min-width: 0; }
+    .file-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-detail { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    button.sm-link { background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; padding: 4px; text-decoration: underline; }
+    button.sm-link:hover { color: var(--text); }
+
+    .settings { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .opt-btn { flex: 1; min-width: fit-content; padding: 7px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--bg); font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; transition: all .15s; }
+    .opt-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+    .opt-btn:hover:not(.active) { border-color: #b0b8c8; }
+
+    .progress-area { padding: 16px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 8px; }
+    .progress-bar-outer { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-bar-inner { height: 100%; background: var(--primary); border-radius: 3px; transition: width .3s; }
+    @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(500%); } }
+    .progress-bar-inner.indeterminate { width: 18% !important; animation: slide 1.2s ease-in-out infinite; transition: none; }
+    .progress-label { font-size: 13px; color: var(--text-secondary); }
+
+    .result-area { padding: 16px; border-top: 1px solid var(--border); display: none; flex-direction: column; gap: 10px; }
+    .result-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .result-textarea { width: 100%; min-height: 180px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; line-height: 1.7; color: var(--text); background: var(--bg); resize: vertical; font-family: inherit; outline: none; }
+    .result-textarea:focus { border-color: var(--primary); }
+    .result-actions { display: flex; gap: 8px; }
+
+    .actions { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+    button { padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; font-weight: 500; }
+    button:hover:not(:disabled) { background: var(--bg); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); flex: 1; }
+    button.primary:hover:not(:disabled) { background: #1d4ed8; }
+    button.secondary { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    button.secondary:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+
+    .hint { font-size: 12px; color: var(--text-muted); padding: 10px 16px; border-top: 1px solid var(--border); line-height: 1.6; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>🎙 语音转文字</h1>
+</nav>
+
+<div class="container">
+  <div class="drop-zone" id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:12px;opacity:.4">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+    </svg>
+    <div>拖放音频文件到此处，或<b>点击选择</b></div>
+    <div style="font-size:12px;margin-top:6px;color:#aaa">支持 MP3、WAV、M4A、OGG、FLAC、WebM</div>
+  </div>
+  <input type="file" id="file-input" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.webm" style="display:none">
+
+  <div class="card" id="main-card" style="display:none">
+    <div class="file-info">
+      <div class="file-icon">🎙</div>
+      <div class="file-meta">
+        <div class="file-name" id="file-name"></div>
+        <div class="file-detail" id="file-detail"></div>
+      </div>
+      <button class="sm-link" onclick="loadNew()">换一个</button>
+    </div>
+
+    <div class="settings">
+      <div class="field">
+        <label>模型精度</label>
+        <div class="btn-group">
+          <div class="opt-btn active" data-model="tiny">快速（~40 MB）</div>
+          <div class="opt-btn" data-model="base">精准（~140 MB）</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>语言</label>
+        <div class="btn-group">
+          <div class="opt-btn active" data-lang="auto">自动检测</div>
+          <div class="opt-btn" data-lang="chinese">中文</div>
+          <div class="opt-btn" data-lang="english">英语</div>
+          <div class="opt-btn" data-lang="japanese">日语</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-area" id="progress-area">
+      <div class="progress-label" id="progress-label">准备中…</div>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="result-area" id="result-area">
+      <div class="result-label">转录结果（可编辑）</div>
+      <textarea class="result-textarea" id="result-text" placeholder="转录结果将显示在这里…"></textarea>
+      <div class="result-actions">
+        <button class="secondary" id="btn-copy" onclick="copyText()">复制文字</button>
+        <button class="secondary" onclick="downloadTxt()">下载 .txt</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="btn-start" onclick="startTranscription()">开始转录</button>
+    </div>
+
+    <div class="hint" id="model-hint">首次使用会下载模型文件（约 40 MB），浏览器会自动缓存，之后无需重复下载。所有处理在本地完成，音频不会上传到服务器。</div>
+  </div>
+</div>
+
+<script type="module">
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+
+  let audioFile = null;
+  let transcriber = null;
+  let loadedModelKey = '';
+  let currentModel = 'tiny';
+  let currentLang = 'auto';
+
+  // ── 文件加载 ──
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('click', () => document.getElementById('file-input').click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|flac|webm)$/i.test(f.name));
+    if (f) loadFile(f);
+  });
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    const f = [...e.dataTransfer.files].find(f => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|flac|webm)$/i.test(f.name));
+    if (f) loadFile(f);
+  });
+  document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) loadFile(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  function loadFile(file) {
+    audioFile = file;
+    const url = URL.createObjectURL(file);
+    const audio = new Audio();
+    audio.src = url;
+    audio.onloadedmetadata = () => {
+      document.getElementById('file-detail').textContent =
+        `${fmtSize(file.size)} · 时长 ${fmtTime(audio.duration)}`;
+    };
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-detail').textContent = fmtSize(file.size);
+    dz.classList.add('hidden');
+    document.getElementById('main-card').style.display = '';
+    resetResult();
+  }
+
+  window.loadNew = function() { document.getElementById('file-input').click(); };
+
+  // ── 选项切换 ──
+  document.querySelectorAll('[data-model]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-model]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentModel = btn.dataset.model;
+      const mb = currentModel === 'tiny' ? 40 : 140;
+      document.getElementById('model-hint').textContent =
+        `首次使用会下载模型文件（约 ${mb} MB），浏览器会自动缓存，之后无需重复下载。所有处理在本地完成，音频不会上传到服务器。`;
+    });
+  });
+
+  document.querySelectorAll('[data-lang]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-lang]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLang = btn.dataset.lang;
+    });
+  });
+
+  // ── 转录 ──
+  window.startTranscription = async function() {
+    if (!audioFile) return;
+
+    const btn = document.getElementById('btn-start');
+    btn.disabled = true;
+    resetResult();
+    resetProgress(true);
+
+    try {
+      const modelId = `Xenova/whisper-${currentModel}`;
+
+      // 加载或复用模型
+      if (loadedModelKey !== modelId || !transcriber) {
+        setProgress(0, '正在加载模型…');
+        transcriber = await pipeline('automatic-speech-recognition', modelId, {
+          progress_callback: (p) => {
+            if (p.status === 'progress' && p.progress != null) {
+              const pct = Math.round(p.progress * 0.75);
+              setProgress(pct, `加载模型… ${Math.round(p.progress)}%`);
+            } else if (p.status === 'ready') {
+              setProgress(78, '模型已就绪');
+            }
+          }
+        });
+        loadedModelKey = modelId;
+        setProgress(80, '模型加载完成');
+      } else {
+        setProgress(80, '模型已缓存，跳过下载');
+      }
+
+      // 转录（使用动画进度条）
+      setProgress(80, '转录中，请稍候…');
+      document.getElementById('progress-bar').classList.add('indeterminate');
+
+      const options = { task: 'transcribe', chunk_length_s: 30, stride_length_s: 5 };
+      if (currentLang !== 'auto') options.language = currentLang;
+
+      const url = URL.createObjectURL(audioFile);
+      const result = await transcriber(url, options);
+      URL.revokeObjectURL(url);
+
+      document.getElementById('progress-bar').classList.remove('indeterminate');
+      setProgress(100, '转录完成');
+
+      document.getElementById('result-text').value = (result.text || '').trim();
+      document.getElementById('result-area').style.display = 'flex';
+      setTimeout(() => resetProgress(false), 600);
+
+    } catch (err) {
+      document.getElementById('progress-bar').classList.remove('indeterminate');
+      resetProgress(false);
+      alert('转录失败：' + (err.message || err));
+      console.error(err);
+    }
+
+    btn.disabled = false;
+  };
+
+  window.copyText = function() {
+    const text = document.getElementById('result-text').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('btn-copy');
+      const orig = btn.textContent;
+      btn.textContent = '已复制 ✓';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  };
+
+  window.downloadTxt = function() {
+    const text = document.getElementById('result-text').value;
+    if (!text) return;
+    const filename = (audioFile?.name || 'transcript').replace(/\.[^.]+$/, '') + '.txt';
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  };
+
+  // ── 工具函数 ──
+  function fmtTime(s) {
+    if (!isFinite(s)) return '--:--';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function fmtSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-label').textContent = label;
+  }
+
+  function resetProgress(show) {
+    document.getElementById('progress-area').style.display = show ? 'flex' : 'none';
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-bar').classList.remove('indeterminate');
+  }
+
+  function resetResult() {
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('result-text').value = '';
+    resetProgress(false);
+  }
+</script>
+</body>
+</html>
