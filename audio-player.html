@@ -72,22 +72,37 @@
     .volume-val { font-size: 11px; color: var(--text-muted); min-width: 32px; font-variant-numeric: tabular-nums; }
     .volume-spacer { flex: 1; }
 
-    /* 文本区 */
-    .text-section { border-top: 1px solid var(--border); }
-    .text-header { display: flex; align-items: center; padding: 10px 16px; cursor: pointer; user-select: none; }
-    .text-header:hover { background: var(--bg); }
-    .text-toggle { font-size: 13px; font-weight: 500; flex: 1; display: flex; align-items: center; gap: 6px; }
-    .text-toggle .arrow { transition: transform .2s; font-size: 10px; color: var(--text-muted); }
-    .text-toggle .arrow.open { transform: rotate(90deg); }
-    .text-actions { display: flex; gap: 4px; }
-    .text-action-btn { background: none; border: none; font-size: 11px; color: var(--text-muted); cursor: pointer; padding: 3px 8px; border-radius: 4px; }
-    .text-action-btn:hover { background: var(--bg); color: var(--text); }
+    /* 转录区 */
+    .transcribe-section { border-top: 1px solid var(--border); }
+    .transcribe-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .transcribe-header .title { font-size: 13px; font-weight: 600; }
+    .transcribe-header .hint { font-size: 11px; color: var(--text-muted); flex: 1; }
 
-    .text-body { display: none; padding: 0 16px 16px; }
-    .text-body.open { display: block; }
-    .text-area { width: 100%; min-height: 180px; resize: vertical; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; line-height: 1.8; background: var(--bg); color: var(--text); outline: none; font-family: inherit; }
+    .transcribe-settings { padding: 12px 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border); }
+    .transcribe-settings .field-inline { display: flex; align-items: center; gap: 6px; }
+    .transcribe-settings .field-inline label { font-size: 12px; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+    .mini-btn-group { display: flex; gap: 3px; }
+    .mini-btn { padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--bg); font-size: 11px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .mini-btn.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+    .mini-btn:hover:not(.active) { border-color: #b0b8c8; }
+
+    .transcribe-progress { padding: 10px 16px; display: none; flex-direction: column; gap: 6px; }
+    .tp-bar-outer { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .tp-bar-inner { height: 100%; background: var(--primary); border-radius: 2px; transition: width .3s; }
+    @keyframes tp-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(500%); } }
+    .tp-bar-inner.indeterminate { width: 18% !important; animation: tp-slide 1.2s ease-in-out infinite; transition: none; }
+    .tp-label { font-size: 12px; color: var(--text-secondary); }
+
+    .text-result { display: none; flex-direction: column; gap: 8px; padding: 12px 16px; }
+    .text-result.open { display: flex; }
+    .text-result-header { display: flex; align-items: center; gap: 6px; }
+    .text-result-header .badge { font-size: 11px; color: #16a34a; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1px 8px; border-radius: 10px; font-weight: 500; }
+    .text-result-actions { display: flex; gap: 6px; margin-left: auto; }
+    .text-result-actions button { padding: 4px 10px; font-size: 11px; }
+    .text-area { width: 100%; min-height: 160px; resize: vertical; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; line-height: 1.8; background: var(--bg); color: var(--text); outline: none; font-family: inherit; }
     .text-area:focus { border-color: var(--primary); }
-    .text-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+    .text-area.hidden { display: none; }
+    .text-hint { font-size: 11px; color: var(--text-muted); }
 
     /* 键盘快捷键提示 */
     .shortcuts { padding: 12px 16px; font-size: 11px; color: var(--text-muted); line-height: 1.8; border-top: 1px solid var(--border); }
@@ -178,20 +193,49 @@
       <div class="volume-spacer"></div>
     </div>
 
-    <!-- 文本区 -->
-    <div class="text-section">
-      <div class="text-header" onclick="toggleText()">
-        <div class="text-toggle">
-          <span class="arrow" id="text-arrow">▶</span>
-          文本 / 歌词
+    <!-- 转录区 -->
+    <div class="transcribe-section">
+      <div class="transcribe-header">
+        <span class="title">语音转文字</span>
+        <span class="hint">使用 Whisper AI 模型，首次加载需下载模型（约 40 MB）</span>
+      </div>
+      <div class="transcribe-settings">
+        <div class="field-inline">
+          <label>模型</label>
+          <div class="mini-btn-group">
+            <button class="mini-btn active" data-model="tiny">快速</button>
+            <button class="mini-btn" data-model="base">精准</button>
+          </div>
         </div>
-        <div class="text-actions">
-          <button class="text-action-btn" onclick="event.stopPropagation(); clearText()">清空</button>
+        <div class="field-inline">
+          <label>语言</label>
+          <div class="mini-btn-group">
+            <button class="mini-btn active" data-lang="auto">自动</button>
+            <button class="mini-btn" data-lang="chinese">中文</button>
+            <button class="mini-btn" data-lang="english">英语</button>
+            <button class="mini-btn" data-lang="japanese">日语</button>
+          </div>
+        </div>
+        <button id="btn-transcribe" onclick="startTranscribe()" style="margin-left:auto;padding:5px 14px;font-size:12px;">开始转录</button>
+      </div>
+
+      <div class="transcribe-progress" id="tp-area">
+        <div class="tp-label" id="tp-label">准备中…</div>
+        <div class="tp-bar-outer">
+          <div class="tp-bar-inner" id="tp-bar" style="width:0%"></div>
         </div>
       </div>
-      <div class="text-body" id="text-body">
-        <textarea class="text-area" id="text-area" placeholder="在此粘贴歌词、台词、笔记等文本内容……&#10;&#10;播放音频时可以对照阅读，也可以随时隐藏此区域。"></textarea>
-        <div class="text-hint">文本仅在浏览器中显示，不会上传到任何服务器</div>
+
+      <div class="text-result" id="text-result">
+        <div class="text-result-header">
+          <span class="badge" id="text-badge">已转录</span>
+          <div class="text-result-actions">
+            <button onclick="copyTranscript()">复制</button>
+            <button onclick="toggleTextVisibility()" id="btn-toggle-text">隐藏文字</button>
+          </div>
+        </div>
+        <textarea class="text-area" id="text-area" placeholder="转录结果将显示在这里…" readonly></textarea>
+        <div class="text-hint">所有处理在浏览器本地完成，音频不会上传到任何服务器</div>
       </div>
     </div>
 
@@ -208,12 +252,22 @@
 
 <audio id="audio" preload="auto"></audio>
 
-<script>
+<script type="module">
+  import { pipeline } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+
   const audio = document.getElementById('audio');
   let isPlaying = false;
   let currentSpeed = 1;
   let isMuted = false;
   let prevVolume = 100;
+  let audioFileUrl = null;
+
+  // transcription state
+  let transcriber = null;
+  let loadedModelKey = '';
+  let currentModel = 'tiny';
+  let currentLang = 'auto';
+  let textVisible = true;
 
   // ── 文件加载 ──
   const dz = document.getElementById('drop-zone');
@@ -237,7 +291,9 @@
   });
 
   function loadFile(file) {
-    audio.src = URL.createObjectURL(file);
+    if (audioFileUrl) URL.revokeObjectURL(audioFileUrl);
+    audioFileUrl = URL.createObjectURL(file);
+    audio.src = audioFileUrl;
     audio.load();
     audio.onloadedmetadata = () => {
       document.getElementById('file-name').textContent = file.name;
@@ -250,12 +306,15 @@
     document.getElementById('main-card').style.display = '';
     isPlaying = false;
     updatePlayIcon();
+    // reset transcript
+    document.getElementById('text-result').classList.remove('open');
+    document.getElementById('tp-area').style.display = 'none';
   }
 
-  function loadNew() { document.getElementById('file-input').click(); }
+  window.loadNew = () => document.getElementById('file-input').click();
 
   // ── 播放控制 ──
-  function togglePlay() {
+  window.togglePlay = function() {
     if (!audio.src) return;
     if (audio.paused) {
       audio.play();
@@ -265,18 +324,14 @@
       isPlaying = false;
     }
     updatePlayIcon();
-  }
+  };
 
   function updatePlayIcon() {
     document.getElementById('icon-play').style.display = isPlaying ? 'none' : '';
     document.getElementById('icon-pause').style.display = isPlaying ? '' : 'none';
   }
 
-  audio.addEventListener('ended', () => {
-    isPlaying = false;
-    updatePlayIcon();
-  });
-
+  audio.addEventListener('ended', () => { isPlaying = false; updatePlayIcon(); });
   audio.addEventListener('play', () => { isPlaying = true; updatePlayIcon(); });
   audio.addEventListener('pause', () => { isPlaying = false; updatePlayIcon(); });
 
@@ -291,7 +346,6 @@
     document.getElementById('time-current').textContent = fmtTime(audio.currentTime);
   }
 
-  // click to seek
   const track = document.getElementById('progress-track');
   let seeking = false;
 
@@ -310,10 +364,10 @@
   document.addEventListener('mouseup', () => { seeking = false; });
   document.addEventListener('touchend', () => { seeking = false; });
 
-  function skipTime(delta) {
+  window.skipTime = function(delta) {
     if (!audio.duration) return;
     audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + delta));
-  }
+  };
 
   // ── 速度 ──
   const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -347,7 +401,7 @@
     updateVolumeIcon(v);
   });
 
-  function toggleMute() {
+  window.toggleMute = function() {
     if (isMuted) {
       const v = prevVolume || 100;
       audio.volume = v / 100;
@@ -363,7 +417,7 @@
       isMuted = true;
       updateVolumeIcon(0);
     }
-  }
+  };
 
   function updateVolumeIcon(v) {
     document.getElementById('vol-wave1').style.display = v > 0 ? '' : 'none';
@@ -379,36 +433,119 @@
     updateVolumeIcon(v);
   }
 
-  // ── 文本区 ──
-  let textOpen = false;
+  // ── 转录设置 ──
+  document.querySelectorAll('[data-model]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-model]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentModel = btn.dataset.model;
+    });
+  });
+  document.querySelectorAll('[data-lang]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-lang]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentLang = btn.dataset.lang;
+    });
+  });
 
-  function toggleText() {
-    textOpen = !textOpen;
-    document.getElementById('text-body').classList.toggle('open', textOpen);
-    document.getElementById('text-arrow').classList.toggle('open', textOpen);
+  // ── 转录 ──
+  window.startTranscribe = async function() {
+    if (!audioFileUrl) return;
+
+    const btn = document.getElementById('btn-transcribe');
+    btn.disabled = true;
+    btn.textContent = '转录中…';
+    document.getElementById('text-result').classList.remove('open');
+    setTP(true, 0, '准备中…');
+
+    try {
+      const modelId = `Xenova/whisper-${currentModel}`;
+
+      if (loadedModelKey !== modelId || !transcriber) {
+        setTP(true, 0, '正在加载模型…');
+        transcriber = await pipeline('automatic-speech-recognition', modelId, {
+          progress_callback: (p) => {
+            if (p.status === 'progress' && p.progress != null) {
+              setTP(true, Math.round(p.progress * 0.75), `加载模型… ${Math.round(p.progress)}%`);
+            } else if (p.status === 'ready') {
+              setTP(true, 78, '模型已就绪');
+            }
+          }
+        });
+        loadedModelKey = modelId;
+        setTP(true, 80, '模型加载完成');
+      } else {
+        setTP(true, 80, '模型已缓存');
+      }
+
+      setTP(true, 80, '转录中，请稍候…');
+      document.getElementById('tp-bar').classList.add('indeterminate');
+
+      const options = { task: 'transcribe', chunk_length_s: 30, stride_length_s: 5 };
+      if (currentLang !== 'auto') options.language = currentLang;
+
+      const result = await transcriber(audioFileUrl, options);
+
+      document.getElementById('tp-bar').classList.remove('indeterminate');
+      setTP(true, 100, '转录完成');
+
+      document.getElementById('text-area').value = (result.text || '').trim();
+      document.getElementById('text-result').classList.add('open');
+      textVisible = true;
+      document.getElementById('btn-toggle-text').textContent = '隐藏文字';
+      document.getElementById('text-area').classList.remove('hidden');
+
+      setTimeout(() => setTP(false), 500);
+
+    } catch (err) {
+      document.getElementById('tp-bar').classList.remove('indeterminate');
+      setTP(false);
+      alert('转录失败：' + (err.message || err));
+      console.error(err);
+    }
+
+    btn.disabled = false;
+    btn.textContent = '开始转录';
+  };
+
+  function setTP(show, pct, label) {
+    document.getElementById('tp-area').style.display = show ? 'flex' : 'none';
+    if (show) {
+      document.getElementById('tp-bar').style.width = pct + '%';
+      document.getElementById('tp-label').textContent = label;
+    }
   }
 
-  function clearText() {
-    document.getElementById('text-area').value = '';
-  }
+  // ── 文字显示/隐藏 ──
+  window.toggleTextVisibility = function() {
+    textVisible = !textVisible;
+    document.getElementById('text-area').classList.toggle('hidden', !textVisible);
+    document.getElementById('btn-toggle-text').textContent = textVisible ? '隐藏文字' : '显示文字';
+  };
+
+  window.copyTranscript = function() {
+    const text = document.getElementById('text-area').value;
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+  };
 
   // ── 键盘快捷键 ──
   document.addEventListener('keydown', e => {
-    // don't intercept when typing in textarea
     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
 
     switch (e.key) {
       case ' ':
         e.preventDefault();
-        togglePlay();
+        window.togglePlay();
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        skipTime(-5);
+        window.skipTime(-5);
         break;
       case 'ArrowRight':
         e.preventDefault();
-        skipTime(5);
+        window.skipTime(5);
         break;
       case 'ArrowUp':
         e.preventDefault();
@@ -425,7 +562,7 @@
         changeSpeed(1);
         break;
       case 'm':
-        toggleMute();
+        window.toggleMute();
         break;
     }
   });
