@@ -58,6 +58,14 @@
     .badge-done { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
     .badge-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
+    /* 格式说明 */
+    .format-info { padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--bg); font-size: 12px; color: var(--text-secondary); line-height: 1.8; }
+    .format-info .label { font-weight: 600; color: var(--text); }
+    .format-info .arrow { color: var(--primary); margin: 0 4px; }
+    .format-info .tag { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+    .format-info .tag-in { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .format-info .tag-out { background: var(--primary-light); color: var(--primary); border: 1px solid #bfdbfe; }
+
     .item-progress { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
     .item-progress-inner { height: 100%; background: var(--primary); border-radius: 2px; transition: width .15s; }
 
@@ -96,6 +104,23 @@
   <input type="file" id="file-input" accept="audio/*" multiple style="display:none">
 
   <div class="card" id="main-card" style="display:none">
+    <!-- 格式说明 -->
+    <div class="format-info">
+      <span class="label">支持的转换：</span><br>
+      <span class="tag tag-in">MP3</span>
+      <span class="tag tag-in">WAV</span>
+      <span class="tag tag-in">OGG</span>
+      <span class="tag tag-in">AAC</span>
+      <span class="tag tag-in">M4A</span>
+      <span class="tag tag-in">FLAC</span>
+      <span class="tag tag-in">WebM</span>
+      <span class="arrow">→</span>
+      <span class="tag tag-out">MP3</span>
+      <span class="tag tag-out">WAV</span>
+      <br style="margin-top:4px">
+      <span style="color:var(--text-muted)">输入格式取决于浏览器支持，以上格式在大多数现代浏览器中均可解码</span>
+    </div>
+
     <!-- 设置 -->
     <div class="settings">
       <div class="field">
