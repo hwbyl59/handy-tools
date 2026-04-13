@@ -215,12 +215,13 @@
 
   // capture
   function captureFrame() {
-    if (!video.videoWidth) return;
+    if (!video.videoWidth || !video.readyState >= 2) return;
+    video.pause();
     const canvas = document.getElementById('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
 
     const mime = imgFmt === 'jpeg' ? 'image/jpeg' : 'image/png';
     const quality = imgFmt === 'jpeg' ? 0.92 : undefined;
@@ -236,7 +237,7 @@
   function renderCaptures() {
     const section = document.getElementById('captures-section');
     const grid = document.getElementById('captures-grid');
-    section.style.display = captures.length ? '' : 'none';
+    section.style.display = captures.length ? 'block' : 'none';
     document.getElementById('captures-title').textContent = `已截取 ${captures.length} 张`;
     grid.innerHTML = '';
 
