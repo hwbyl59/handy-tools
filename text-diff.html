@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文本对比 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; font-weight: 500; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: #1d4ed8; }
+    .spacer { flex: 1; }
+    .stats { font-size: 12px; color: var(--text-muted); }
+
+    .editors { display: flex; gap: 12px; flex: 1; min-height: 250px; }
+    .editor-col { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .editor-col label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    textarea { flex: 1; resize: vertical; min-height: 200px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-family: "SF Mono", Consolas, monospace; font-size: 13px; line-height: 1.6; background: var(--surface); color: var(--text); outline: none; }
+    textarea:focus { border-color: var(--primary); }
+
+    .diff-output { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: auto; max-height: 500px; font-family: "SF Mono", Consolas, monospace; font-size: 13px; line-height: 1.6; }
+    .diff-table { width: 100%; border-collapse: collapse; }
+    .diff-table td { padding: 1px 10px; white-space: pre-wrap; word-break: break-all; vertical-align: top; }
+    .diff-table .ln { width: 40px; min-width: 40px; text-align: right; color: var(--text-muted); font-size: 11px; user-select: none; border-right: 1px solid var(--border); padding-right: 8px; }
+    .diff-table .add { background: #dcfce7; }
+    .diff-table .del { background: #fee2e2; }
+    .diff-table .add .ln { background: #bbf7d0; }
+    .diff-table .del .ln { background: #fecaca; }
+    .diff-table .sign { width: 16px; min-width: 16px; text-align: center; font-weight: 600; user-select: none; }
+    .diff-table .add .sign { color: #16a34a; }
+    .diff-table .del .sign { color: #dc2626; }
+    .diff-table .ctx { background: var(--surface); }
+
+    .diff-empty { padding: 32px; text-align: center; color: var(--text-muted); font-size: 14px; font-family: -apple-system, sans-serif; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>↔️ 文本对比</h1>
+</nav>
+
+<div class="container">
+  <div class="editors">
+    <div class="editor-col">
+      <label>原始文本</label>
+      <textarea id="text-a" placeholder="粘贴原始文本…" spellcheck="false"></textarea>
+    </div>
+    <div class="editor-col">
+      <label>修改后文本</label>
+      <textarea id="text-b" placeholder="粘贴修改后文本…" spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" onclick="doDiff()">对比</button>
+    <button onclick="swapTexts()">↔ 交换</button>
+    <button onclick="clearAll()">清空</button>
+    <span class="spacer"></span>
+    <span class="stats" id="stats"></span>
+  </div>
+
+  <div class="diff-output" id="diff-output">
+    <div class="diff-empty">点击"对比"查看差异</div>
+  </div>
+</div>
+
+<script>
+  function doDiff() {
+    const a = document.getElementById('text-a').value;
+    const b = document.getElementById('text-b').value;
+    const linesA = a.split('\n');
+    const linesB = b.split('\n');
+
+    const diff = myersDiff(linesA, linesB);
+    renderDiff(diff);
+  }
+
+  function swapTexts() {
+    const ta = document.getElementById('text-a');
+    const tb = document.getElementById('text-b');
+    const tmp = ta.value;
+    ta.value = tb.value;
+    tb.value = tmp;
+  }
+
+  function clearAll() {
+    document.getElementById('text-a').value = '';
+    document.getElementById('text-b').value = '';
+    document.getElementById('diff-output').innerHTML = '<div class="diff-empty">点击"对比"查看差异</div>';
+    document.getElementById('stats').textContent = '';
+  }
+
+  // Myers diff algorithm (simplified for lines)
+  function myersDiff(a, b) {
+    const n = a.length, m = b.length;
+    const max = n + m;
+    const v = new Array(2 * max + 1);
+    v[max + 1] = 0;
+    const trace = [];
+
+    outer:
+    for (let d = 0; d <= max; d++) {
+      trace.push([...v]);
+      for (let k = -d; k <= d; k += 2) {
+        let x;
+        if (k === -d || (k !== d && v[max + k - 1] < v[max + k + 1])) {
+          x = v[max + k + 1];
+        } else {
+          x = v[max + k - 1] + 1;
+        }
+        let y = x - k;
+        while (x < n && y < m && a[x] === b[y]) { x++; y++; }
+        v[max + k] = x;
+        if (x >= n && y >= m) break outer;
+      }
+    }
+
+    // backtrack
+    const result = [];
+    let x = n, y = m;
+    for (let d = trace.length - 1; d >= 0; d--) {
+      const vPrev = trace[d];
+      const k = x - y;
+      let prevK;
+      if (k === -d || (k !== d && vPrev[max + k - 1] < vPrev[max + k + 1])) {
+        prevK = k + 1;
+      } else {
+        prevK = k - 1;
+      }
+      const prevX = vPrev[max + prevK];
+      const prevY = prevX - prevK;
+
+      // diagonal (equal lines)
+      while (x > prevX && y > prevY) {
+        x--; y--;
+        result.unshift({ type: 'ctx', lineA: x, lineB: y, text: a[x] });
+      }
+      if (d > 0) {
+        if (x === prevX) {
+          // insert
+          y--;
+          result.unshift({ type: 'add', lineB: y, text: b[y] });
+        } else {
+          // delete
+          x--;
+          result.unshift({ type: 'del', lineA: x, text: a[x] });
+        }
+      }
+    }
+    return result;
+  }
+
+  function renderDiff(diff) {
+    const container = document.getElementById('diff-output');
+
+    if (diff.length === 0 || diff.every(d => d.type === 'ctx')) {
+      container.innerHTML = '<div class="diff-empty">两段文本完全相同</div>';
+      document.getElementById('stats').textContent = '无差异';
+      return;
+    }
+
+    let adds = 0, dels = 0;
+    let html = '<table class="diff-table">';
+    for (const d of diff) {
+      const cls = d.type;
+      const lnA = d.type === 'add' ? '' : (d.lineA + 1);
+      const lnB = d.type === 'del' ? '' : (d.lineB + 1);
+      const sign = d.type === 'add' ? '+' : (d.type === 'del' ? '-' : ' ');
+      const text = escHtml(d.text);
+      html += `<tr class="${cls}"><td class="ln">${lnA}</td><td class="ln">${lnB}</td><td class="sign">${sign}</td><td>${text || ' '}</td></tr>`;
+      if (d.type === 'add') adds++;
+      if (d.type === 'del') dels++;
+    }
+    html += '</table>';
+    container.innerHTML = html;
+
+    document.getElementById('stats').textContent =
+      `${adds} 行新增，${dels} 行删除，${diff.length - adds - dels} 行未变`;
+  }
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>

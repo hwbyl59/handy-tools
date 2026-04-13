@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON 格式化 - 工具箱</title>
+  <style>
+    :root {
+      --bg: #f7f8fa; --surface: #fff; --border: #e8eaed;
+      --text: #1f2329; --text-secondary: #646a73; --text-muted: #8f959e;
+      --primary: #2563eb; --primary-light: #eff6ff;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; height: 52px; display: flex; align-items: center; gap: 16px; }
+    .back { text-decoration: none; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; }
+    .back:hover { background: var(--bg); color: var(--text); }
+    nav h1 { font-size: 15px; font-weight: 600; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; width: 100%; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+    .toolbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    button { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; cursor: pointer; transition: all .15s; font-weight: 500; }
+    button:hover { background: var(--bg); }
+    button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    button.primary:hover { background: #1d4ed8; }
+    .spacer { flex: 1; }
+    .status { font-size: 12px; color: var(--text-muted); padding: 4px 10px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); }
+    .status.valid { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+    .status.invalid { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field > label { font-size: 12px; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .indent-select { padding: 3px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--surface); }
+
+    .editor-wrap { flex: 1; display: flex; flex-direction: column; min-height: 400px; }
+    textarea { flex: 1; resize: vertical; min-height: 400px; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace; font-size: 13px; line-height: 1.6; background: var(--surface); color: var(--text); outline: none; tab-size: 2; box-shadow: var(--shadow); }
+    textarea:focus { border-color: var(--primary); }
+    textarea.error-highlight { border-color: #dc2626; }
+
+    .error-msg { font-size: 12px; color: #dc2626; background: #fef2f2; padding: 8px 12px; border-radius: 8px; border: 1px solid #fecaca; display: none; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="index.html" class="back">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    返回
+  </a>
+  <h1>{ } JSON 格式化</h1>
+</nav>
+
+<div class="container">
+  <div class="toolbar">
+    <button class="primary" onclick="formatJson()">格式化</button>
+    <button onclick="minifyJson()">压缩</button>
+    <button onclick="validateJson()">校验</button>
+    <button onclick="copyOutput()">复制</button>
+    <button onclick="clearAll()">清空</button>
+    <span class="spacer"></span>
+    <span class="status" id="status">请粘贴 JSON</span>
+  </div>
+
+  <div class="field">
+    <label>
+      缩进:
+      <select class="indent-select" id="indent-select">
+        <option value="2">2 空格</option>
+        <option value="4">4 空格</option>
+        <option value="tab">Tab</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="editor-wrap">
+    <textarea id="editor" placeholder="在此粘贴 JSON 数据…" spellcheck="false"></textarea>
+  </div>
+
+  <div class="error-msg" id="error-msg"></div>
+</div>
+
+<script>
+  const editor = document.getElementById('editor');
+  const statusEl = document.getElementById('status');
+  const errorEl = document.getElementById('error-msg');
+
+  // auto validate on input
+  let debounce;
+  editor.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(autoValidate, 300);
+  });
+
+  function autoValidate() {
+    const val = editor.value.trim();
+    if (!val) {
+      setStatus('请粘贴 JSON', '');
+      errorEl.style.display = 'none';
+      editor.classList.remove('error-highlight');
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setStatus('JSON 有效 ✓', 'valid');
+      errorEl.style.display = 'none';
+      editor.classList.remove('error-highlight');
+    } catch (e) {
+      setStatus('JSON 无效 ✕', 'invalid');
+    }
+  }
+
+  function getIndent() {
+    const v = document.getElementById('indent-select').value;
+    return v === 'tab' ? '\t' : parseInt(v);
+  }
+
+  function formatJson() {
+    const val = editor.value.trim();
+    if (!val) return;
+    try {
+      const obj = JSON.parse(val);
+      editor.value = JSON.stringify(obj, null, getIndent());
+      setStatus('已格式化 ✓', 'valid');
+      errorEl.style.display = 'none';
+      editor.classList.remove('error-highlight');
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  function minifyJson() {
+    const val = editor.value.trim();
+    if (!val) return;
+    try {
+      const obj = JSON.parse(val);
+      editor.value = JSON.stringify(obj);
+      setStatus('已压缩 ✓', 'valid');
+      errorEl.style.display = 'none';
+      editor.classList.remove('error-highlight');
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  function validateJson() {
+    const val = editor.value.trim();
+    if (!val) return;
+    try {
+      JSON.parse(val);
+      setStatus('JSON 有效 ✓', 'valid');
+      errorEl.style.display = 'none';
+      editor.classList.remove('error-highlight');
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  function copyOutput() {
+    if (!editor.value) return;
+    navigator.clipboard.writeText(editor.value).then(() => {
+      setStatus('已复制到剪贴板', 'valid');
+    });
+  }
+
+  function clearAll() {
+    editor.value = '';
+    setStatus('请粘贴 JSON', '');
+    errorEl.style.display = 'none';
+    editor.classList.remove('error-highlight');
+  }
+
+  function showError(msg) {
+    setStatus('JSON 无效 ✕', 'invalid');
+    editor.classList.add('error-highlight');
+    errorEl.textContent = '❌ ' + msg;
+    errorEl.style.display = '';
+  }
+
+  function setStatus(text, type) {
+    statusEl.textContent = text;
+    statusEl.className = 'status' + (type ? ' ' + type : '');
+  }
+
+  // support tab key
+  editor.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const indent = document.getElementById('indent-select').value === 'tab' ? '\t' : ' '.repeat(parseInt(document.getElementById('indent-select').value));
+      editor.value = editor.value.substring(0, start) + indent + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = start + indent.length;
+    }
+  });
+</script>
+</body>
+</html>
